@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { parseISO, isBefore, isEqual } from 'date-fns';
 
@@ -11,7 +10,7 @@ export interface Server {
   id: string;
   cpf: string;
   name: string;
-  entryDate?: string; // Format: YYYY-MM-DD
+  entryDate?: string;
   origin: Origin;
   status: Status;
   fund: Fund;
@@ -65,96 +64,91 @@ interface AppState {
 
 const CUTOFF_DATE = new Date('2005-01-18T00:00:00Z');
 
-export const useStore = create<AppState>()(
-  persist(
-    (set, get) => ({
-      spreadsheetId: null,
-      setSpreadsheetId: (id) => set({ spreadsheetId: id }),
-      servers: [],
-      reports: [],
-      
-      calculateFund: (dateStr?: string): Fund => {
-        if (!dateStr) return 'NAO_DEFINIDO';
-        
-        let date;
-        if (dateStr.includes('/')) {
-          const [dd, mm, yyyy] = dateStr.split('/');
-          date = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-        } else {
-          date = new Date(`${dateStr}T00:00:00Z`);
-        }
-        
-        if (isNaN(date.getTime())) return 'NAO_DEFINIDO';
-
-        const cutoff = new Date(2003, 11, 31);
-        return date <= cutoff ? 'FUNDO_FINANCEIRO' : 'FUNDO_PREVIDENCIARIO';
-      },
-
-      addServer: (serverData) => {
-        const id = uuidv4();
-        const fund = get().calculateFund(serverData.entryDate);
-        set((state) => ({
-          servers: [...state.servers, { ...serverData, id, fund, status: serverData.status || 'APPROVED' }],
-        }));
-      },
-
-      updateServer: (id, serverData) => {
-        set((state) => ({
-          servers: state.servers.map((server) => {
-            if (server.id === id) {
-              const updatedServer = { ...server, ...serverData };
-              // Recalculate fund if entryDate changed
-              if (serverData.entryDate !== undefined) {
-                updatedServer.fund = get().calculateFund(updatedServer.entryDate);
-              }
-              return updatedServer;
-            }
-            return server;
-          }),
-        }));
-      },
-
-      deleteServer: (id) => {
-        set((state) => ({
-          servers: state.servers.filter((s) => s.id !== id),
-        }));
-      },
-
-      upsertServersFromImport: (serversToImport) => {
-        set((state) => {
-          const newServers = [...state.servers];
-          let changed = false;
-          
-          serversToImport.forEach(importedServer => {
-            const existing = newServers.find(s => s.cpf === importedServer.cpf);
-            if (!existing && importedServer.cpf !== '00000000000') {
-              newServers.push({
-                ...importedServer,
-                id: uuidv4(),
-                status: 'PENDING',
-                fund: 'NAO_DEFINIDO'
-              });
-              changed = true;
-            }
-          });
-
-          return changed ? { servers: newServers } : state;
-        });
-      },
-
-      addReport: (reportData) => {
-        const id = uuidv4();
-        set((state) => ({
-          reports: [{ ...reportData, id }, ...state.reports],
-        }));
-      },
-      
-      setServers: (newServers) => {
-        set({ servers: newServers });
-      }
-    }),
-    {
-      name: 'rpps-comprev-storage-v3',
+// Removido o middleware "persist" para NÃO usar localStorage.
+// O ID da planilha agora vem por padrão da variável de ambiente da Vercel.
+export const useStore = create<AppState>()((set, get) => ({
+  spreadsheetId: process.env.NEXT_PUBLIC_SPREADSHEET_ID || null,
+  setSpreadsheetId: (id) => set({ spreadsheetId: id }),
+  servers: [],
+  reports: [],
+  
+  calculateFund: (dateStr?: string): Fund => {
+    if (!dateStr) return 'NAO_DEFINIDO';
+    
+    let date;
+    if (dateStr.includes('/')) {
+      const [dd, mm, yyyy] = dateStr.split('/');
+      date = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+    } else {
+      date = new Date(`${dateStr}T00:00:00Z`);
     }
-  )
-);
+    
+    if (isNaN(date.getTime())) return 'NAO_DEFINIDO';
+
+    const cutoff = new Date(2003, 11, 31);
+    return date <= cutoff ? 'FUNDO_FINANCEIRO' : 'FUNDO_PREVIDENCIARIO';
+  },
+
+  addServer: (serverData) => {
+    const id = uuidv4();
+    const fund = get().calculateFund(serverData.entryDate);
+    set((state) => ({
+      servers: [...state.servers, { ...serverData, id, fund, status: serverData.status || 'APPROVED' }],
+    }));
+  },
+
+  updateServer: (id, serverData) => {
+    set((state) => ({
+      servers: state.servers.map((server) => {
+        if (server.id === id) {
+          const updatedServer = { ...server, ...serverData };
+          if (serverData.entryDate !== undefined) {
+            updatedServer.fund = get().calculateFund(updatedServer.entryDate);
+          }
+          return updatedServer;
+        }
+        return server;
+      }),
+    }));
+  },
+
+  deleteServer: (id) => {
+    set((state) => ({
+      servers: state.servers.filter((s) => s.id !== id),
+    }));
+  },
+
+  upsertServersFromImport: (serversToImport) => {
+    set((state) => {
+      const newServers = [...state.servers];
+      let changed = false;
+      
+      serversToImport.forEach(importedServer => {
+        const existing = newServers.find(s => s.cpf === importedServer.cpf);
+        if (!existing && importedServer.cpf !== '00000000000') {
+          newServers.push({
+            ...importedServer,
+            id: uuidv4(),
+            status: 'PENDING',
+            fund: 'NAO_DEFINIDO'
+          });
+          changed = true;
+        }
+      });
+
+      return changed ? { servers: newServers } : state;
+    });
+  },
+
+  addReport: (reportData) => {
+    const id = uuidv4();
+    set((state) => ({
+      reports: [{ ...reportData, id }, ...state.reports],
+    }));
+  },
+  
+  setServers: (newServers) => {
+    set({ servers: newServers });
+  }
+}));
+
