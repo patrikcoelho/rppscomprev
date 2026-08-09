@@ -255,6 +255,24 @@ export default function ImportarPage() {
             const cpfRaw = getVal('cpfbeneficirio') || getVal('cpfbeneficiario') || getVal('cpf') || '';
             const observacaoRaw = getVal('motivoglosa') || getVal('observacao') || getVal('observao') || getVal('obs') || '';
             
+            let parsedDestinatario = getVal('destinatario') || getVal('destinatrio');
+            
+            if (type === 'pagar') {
+              // Em arquivos 'a pagar', o ente com quem estamos reconciliando é o solicitante
+              const sol = getVal('solicitante');
+              if (sol) {
+                parsedDestinatario = sol.replace(/^[A-Z]{2}\s*-\s*/, '').trim();
+              }
+            } else if (type === 'glosa') {
+              // Em arquivos de glosa, o ente é o beneficiário institucional
+              const ben = getVal('beneficirio') || getVal('beneficiario');
+              if (ben) {
+                parsedDestinatario = ben.replace(/^[A-Z]{2}\s*-\s*/, '').trim();
+              }
+            }
+            
+            parsedDestinatario = parsedDestinatario || 'NAO_INFORMADO';
+            
             return {
               cpf: cpfRaw.toString().replace(/\D/g, ''),
               nome: getVal('nome') || getVal('nomedobeneficiario') || getVal('nomedobeneficirio') || 'Servidor a Identificar',
@@ -262,7 +280,7 @@ export default function ImportarPage() {
               valor: totalValor,
               competencia: comp,
               type,
-              destinatario: getVal('destinatario') || getVal('destinatrio') || 'NAO_INFORMADO',
+              destinatario: parsedDestinatario,
               observacao: observacaoRaw
             };
           }).filter((r) => r.cpf && r.valor > 0);
