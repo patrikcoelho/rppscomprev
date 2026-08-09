@@ -4,9 +4,11 @@ import { useStore, Fund, ReportServer, Server } from '@/lib/store';
 import { ArrowLeft, Printer, FileText, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { use, useEffect, useState } from 'react';
+import { use, useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { fetchServersFromSheet, parseSheetDate } from '@/lib/sheets';
+import * as XLSX from 'xlsx';
+import html2pdf from 'html2pdf.js';
 
 function FundTable({ 
   title, 
@@ -202,9 +204,107 @@ export default function RelatorioDetalhesPage({ params }: { params: Promise<{ id
     groups[dest].push(s);
   });
 
+  const exportToExcel = () => {
+    const wb = XLSX.utils.book_new();
+
+    Object.entries(groups)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .forEach(([dest, serversGroup]) => {
+        const hasObservacao = serversGroup.some((s: any) => s.observacao && s.observacao.trim() !== '');
+        const hasJuros = serversGroup.some((s: any) => s.juros && Math.abs(s.juros) > 0);
+
+        const header = [
+          'SERVIDOR',
+          'COMPETÊNCIA',
+          'A RECEBER',
+          'A PAGAR',
+          'GLOSAS',
+          ...(hasJuros ? ['JUROS'] : []),
+          'LÍQUIDO',
+          'DATA PGTO',
+          'FUNDO',
+          ...(hasObservacao ? ['OBSERVAÇÃO'] : []),
+        ];
+
+        const rows = serversGroup.map((server: any) => {
+          const row = [
+            `${server.name} - ${String(server.cpf).padStart(11, '0').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')} - ${
+              !dest || dest.toUpperCase().includes('RGPS') || dest.toUpperCase().includes('INSS') || dest.includes('NÃO INFORMADO') || dest === 'NAO_INFORMADO'
+                ? 'RGPS'
+                : `RPPS ${dest}`
+            }`,
+            report.competencia,
+            server.receber || 0,
+            server.pagar || 0,
+            server.glosa || 0,
+            ...(hasJuros ? [server.juros || 0] : []),
+            server.value || 0,
+            server.paymentDate || report.paymentDate || '-',
+            server.fund === 'FUNDO_FINANCEIRO' ? 'FF' : server.fund === 'FUNDO_PREVIDENCIARIO' ? 'FP' : '-',
+            ...(hasObservacao ? [server.observacao || ''] : []),
+          ];
+          return row;
+        });
+
+        // Totals Row
+        const totalReceber = serversGroup.reduce((acc, curr) => acc + (curr.receber || 0), 0);
+        const totalPagar = serversGroup.reduce((acc, curr) => acc + (curr.pagar || 0), 0);
+        const totalGlosa = serversGroup.reduce((acc, curr) => acc + (curr.glosa || 0), 0);
+        const totalJuros = serversGroup.reduce((acc, curr) => acc + (curr.juros || 0), 0);
+        const totalValue = serversGroup.reduce((acc, curr) => acc + (curr.value || 0), 0);
+
+        const footerRow = [
+          'TOTAIS DO DESTINATÁRIO',
+          '',
+          totalReceber,
+          totalPagar,
+          totalGlosa,
+          ...(hasJuros ? [totalJuros] : []),
+          totalValue,
+          '',
+          '',
+          ...(hasObservacao ? [''] : []),
+        ];
+
+        const wsData = [header, ...rows, footerRow];
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+        // Limit sheet name to 31 chars for Excel
+        let sheetName = dest.replace(/[\\/?*[\]]/g, '').substring(0, 31);
+        if (!sheetName) sheetName = 'Planilha1';
+        
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      });
+
+    const fileName = `Reconciliacao_${report.competencia.replace('/', '_')}_${report.id}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
+  const exportToPDF = () => {
+    const element = document.getElementById('pdf-content');
+    if (!element) return;
+    
+    // Temporarily hide action buttons during PDF generation
+    const actionButtons = document.getElementById('action-buttons');
+    if (actionButtons) actionButtons.style.display = 'none';
+
+    const opt = {
+      margin:       10,
+      filename:     `Reconciliacao_${report.competencia.replace('/', '_')}_${report.id}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    };
+
+    html2pdf().set(opt).from(element).save().then(() => {
+      // Restore buttons after PDF is generated
+      if (actionButtons) actionButtons.style.display = 'flex';
+    });
+  };
+
   return (
-    <div className="p-8 max-w-7xl mx-auto w-full print:p-0">
-      <div className="mb-8 flex items-center justify-between print:hidden">
+    <div className="p-8 max-w-7xl mx-auto w-full print:p-0" id="pdf-content">
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden" id="action-buttons">
         <div>
           <Link href="/relatorios" className="inline-flex items-center gap-2 text-blue-600 hover:underline mb-2 font-medium text-sm">
             <ArrowLeft className="w-4 h-4" />
@@ -216,13 +316,27 @@ export default function RelatorioDetalhesPage({ params }: { params: Promise<{ id
           </h1>
           <p className="text-slate-500 text-sm mt-1">Data: {report?.importDate}</p>
         </div>
-        <button 
-          onClick={() => window.print()} 
-          className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg font-medium hover:bg-slate-900 transition-colors"
-        >
-          <Printer className="w-4 h-4" />
-          Imprimir
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button 
+            onClick={exportToExcel} 
+            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-700 transition-colors shadow-sm"
+          >
+            Exportar Excel
+          </button>
+          <button 
+            onClick={exportToPDF} 
+            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 transition-colors shadow-sm"
+          >
+            Exportar PDF
+          </button>
+          <button 
+            onClick={() => window.print()} 
+            className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg font-medium hover:bg-slate-900 transition-colors shadow-sm"
+          >
+            <Printer className="w-4 h-4" />
+            Imprimir
+          </button>
+        </div>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8 print:hidden">
