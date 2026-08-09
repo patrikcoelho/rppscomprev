@@ -1,0 +1,6 @@
+{
+  "name": "RPPS-Comprev",
+  "description": "Sistema de gestão e reconciliação financeira para compensação previdenciária (Comprev), com separação de segregação de massas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

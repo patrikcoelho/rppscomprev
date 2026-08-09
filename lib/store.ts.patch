@@ -1,0 +1,33 @@
+--- lib/store.ts
++++ lib/store.ts
+@@ -37,6 +37,7 @@
+   addServer: (server: Omit<Server, 'id' | 'fund'>) => void;
+   updateServer: (id: string, server: Partial<Server>) => void;
+   deleteServer: (id: string) => void;
++  upsertServerFromImport: (server: Omit<Server, 'id' | 'fund' | 'status'>) => void;
+   addReport: (report: Omit<ReconciliationReport, 'id'>) => void;
+   calculateFund: (entryDate?: string) => Fund;
+ }
+@@ -69,6 +70,22 @@
+         }));
+       },
+ 
++      upsertServerFromImport: (serverData) => {
++        const state = get();
++        const existing = state.servers.find(s => s.cpf === serverData.cpf);
++        if (!existing) {
++           // Just add a new pending server, because we don't know the entry date yet
++           const id = uuidv4();
++           set({
++             servers: [...state.servers, { 
++               ...serverData, 
++               id, 
++               status: 'PENDING',
++               fund: 'NAO_DEFINIDO' 
++             }]
++           });
++        }
++      },
++
+       updateServer: (id, serverData) => {
+         set((state) => ({
