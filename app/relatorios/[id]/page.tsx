@@ -13,7 +13,8 @@ function FundTable({
   competencia,
   servers, 
   paymentDate,
-  footerLabel
+  footerLabel,
+  receivedValue
 }: { 
   title: string;
   competencia: string;
