@@ -25,6 +25,11 @@ function FundTable({
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   };
   
+  const hasObservacao = servers.some(s => s.observacao && s.observacao.trim() !== '');
+  
+  const totalReceber = servers.reduce((acc, curr) => acc + (curr.receber || 0), 0);
+  const totalPagar = servers.reduce((acc, curr) => acc + (curr.pagar || 0), 0);
+  const totalGlosa = servers.reduce((acc, curr) => acc + (curr.glosa || 0), 0);
   const totalValue = servers.reduce((acc, curr) => acc + (curr.value || 0), 0);
 
   return (
@@ -35,15 +40,19 @@ function FundTable({
           <tr className="bg-slate-100 text-slate-800 border-b border-slate-300">
             <th className="py-2 px-3 font-semibold border border-slate-300 uppercase">SERVIDOR</th>
             <th className="py-2 px-3 font-semibold border border-slate-300 uppercase text-center">COMPETÊNCIA</th>
-            <th className="py-2 px-3 font-semibold border border-slate-300 uppercase text-right">VALOR PAGO/DESCONTADO</th>
+            <th className="py-2 px-3 font-semibold border border-slate-300 uppercase text-right">A RECEBER</th>
+            <th className="py-2 px-3 font-semibold border border-slate-300 uppercase text-right">A PAGAR</th>
+            <th className="py-2 px-3 font-semibold border border-slate-300 uppercase text-right">GLOSAS</th>
+            <th className="py-2 px-3 font-semibold border border-slate-300 uppercase text-right text-blue-800">LÍQUIDO</th>
             <th className="py-2 px-3 font-semibold border border-slate-300 uppercase text-center">DATA PGTO</th>
             <th className="py-2 px-3 font-semibold border border-slate-300 uppercase text-center">FUNDO</th>
+            {hasObservacao && <th className="py-2 px-3 font-semibold border border-slate-300 uppercase">OBSERVAÇÃO</th>}
           </tr>
         </thead>
         <tbody>
           {servers.length === 0 ? (
             <tr>
-              <td colSpan={5} className="py-8 text-center text-slate-500 bg-white border border-slate-300">
+              <td colSpan={hasObservacao ? 9 : 8} className="py-8 text-center text-slate-500 bg-white border border-slate-300">
                 Nenhum servidor encontrado neste fundo
               </td>
             </tr>
@@ -56,8 +65,17 @@ function FundTable({
                 <td className="py-1.5 px-3 border border-slate-300 text-center text-slate-700 whitespace-nowrap">
                   {competencia}
                 </td>
-                <td className="py-1.5 px-3 border border-slate-300 text-right text-slate-900 whitespace-nowrap font-medium">
-                  {formatCurrency(server.value || ((server.receber || 0) - (server.pagar || 0) - (server.glosa || 0)))}
+                <td className="py-1.5 px-3 border border-slate-300 text-right text-slate-900 whitespace-nowrap">
+                  {formatCurrency(server.receber || 0)}
+                </td>
+                <td className="py-1.5 px-3 border border-slate-300 text-right text-red-700 whitespace-nowrap">
+                  {formatCurrency(server.pagar || 0)}
+                </td>
+                <td className="py-1.5 px-3 border border-slate-300 text-right text-red-700 whitespace-nowrap">
+                  {formatCurrency(server.glosa || 0)}
+                </td>
+                <td className="py-1.5 px-3 border border-slate-300 text-right text-blue-900 whitespace-nowrap font-bold">
+                  {formatCurrency(server.value)}
                 </td>
                 <td className="py-1.5 px-3 border border-slate-300 text-center text-slate-700 whitespace-nowrap">
                   {paymentDate || '-'}
@@ -65,6 +83,11 @@ function FundTable({
                 <td className="py-1.5 px-3 border border-slate-300 text-center text-slate-700 font-bold whitespace-nowrap">
                   {server.fund === 'FUNDO_FINANCEIRO' ? 'FF' : server.fund === 'FUNDO_PREVIDENCIARIO' ? 'FP' : '-'}
                 </td>
+                {hasObservacao && (
+                  <td className="py-1.5 px-3 border border-slate-300 text-slate-600 text-[11px] max-w-xs truncate" title={server.observacao}>
+                    {server.observacao || '-'}
+                  </td>
+                )}
               </tr>
             ))
           )}
@@ -72,8 +95,11 @@ function FundTable({
         <tfoot className="bg-slate-100 font-bold">
           <tr>
             <td colSpan={2} className="py-2 px-3 border border-slate-300 text-right text-slate-700">{footerLabel || 'TOTAIS:'}</td>
-            <td className="py-2 px-3 border border-slate-300 text-right text-slate-900">{formatCurrency(totalValue)}</td>
-            <td colSpan={2} className="py-2 px-3 border border-slate-300 bg-slate-100"></td>
+            <td className="py-2 px-3 border border-slate-300 text-right text-slate-900">{formatCurrency(totalReceber)}</td>
+            <td className="py-2 px-3 border border-slate-300 text-right text-red-700">{formatCurrency(totalPagar)}</td>
+            <td className="py-2 px-3 border border-slate-300 text-right text-red-700">{formatCurrency(totalGlosa)}</td>
+            <td className="py-2 px-3 border border-slate-300 text-right text-blue-900">{formatCurrency(totalValue)}</td>
+            <td colSpan={hasObservacao ? 3 : 2} className="py-2 px-3 border border-slate-300 bg-slate-100"></td>
           </tr>
         </tfoot>
       </table>

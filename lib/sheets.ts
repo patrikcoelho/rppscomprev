@@ -115,7 +115,7 @@ export async function appendPaymentToSheet(token: string, spreadsheetId: string,
 }
 
 export async function batchAppendPaymentsToSheet(token: string, spreadsheetId: string, rows: any[][]) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:M:append?valueInputOption=USER_ENTERED`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:Q:append?valueInputOption=USER_ENTERED`;
   
   const res = await fetch(url, {
     method: 'POST',
@@ -171,7 +171,7 @@ export interface ImportSummary {
 }
 
 export async function fetchImportsFromSheet(token: string, spreadsheetId: string): Promise<ImportSummary[]> {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:M?valueRenderOption=UNFORMATTED_VALUE`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:Q?valueRenderOption=UNFORMATTED_VALUE`;
   const res = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -219,7 +219,7 @@ function parseNumber(val: any): number {
 }
 
 export async function fetchImportDetailsFromSheet(token: string, spreadsheetId: string, importId: string) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:M?valueRenderOption=UNFORMATTED_VALUE`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:Q?valueRenderOption=UNFORMATTED_VALUE`;
   const res = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -266,7 +266,11 @@ export async function fetchImportDetailsFromSheet(token: string, spreadsheetId: 
         name: row[9] || '',
         origin: row[10] || 'RGPS',
         fund: row[11] === 'FUNDO_FINANCEIRO' || row[11] === 'FF' ? 'FUNDO_FINANCEIRO' : row[11] === 'FUNDO_PREVIDENCIARIO' || row[11] === 'FP' ? 'FUNDO_PREVIDENCIARIO' : 'NAO_DEFINIDO',
-        value: parseNumber(row[12])
+        value: parseNumber(row[12]),
+        receber: parseNumber(row[13]),
+        pagar: parseNumber(row[14]),
+        glosa: parseNumber(row[15]),
+        observacao: row[16] || ''
       });
     }
   }

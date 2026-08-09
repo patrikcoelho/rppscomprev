@@ -17,6 +17,8 @@ interface ParsedRow {
   valor: number;
   competencia: string;
   type: 'receber' | 'pagar' | 'glosa';
+  destinatario: string;
+  observacao?: string;
 }
 
 const FileBox = ({ 
@@ -251,6 +253,7 @@ export default function ImportarPage() {
             }
 
             const cpfRaw = getVal('cpfbeneficirio') || getVal('cpfbeneficiario') || getVal('cpf') || '';
+            const observacaoRaw = getVal('motivoglosa') || getVal('observacao') || getVal('observao') || getVal('obs') || '';
             
             return {
               cpf: cpfRaw.toString().replace(/\D/g, ''),
@@ -259,7 +262,8 @@ export default function ImportarPage() {
               valor: totalValor,
               competencia: comp,
               type,
-              destinatario: getVal('destinatario') || getVal('destinatrio') || 'NAO_INFORMADO'
+              destinatario: getVal('destinatario') || getVal('destinatrio') || 'NAO_INFORMADO',
+              observacao: observacaoRaw
             };
           }).filter((r) => r.cpf && r.valor > 0);
           
@@ -338,6 +342,7 @@ export default function ImportarPage() {
       pagar: number;
       glosa: number;
       destinatario: string;
+      observacoes: string[];
     }>();
 
     rows.forEach(row => {
@@ -345,7 +350,13 @@ export default function ImportarPage() {
       else if (row.type === 'pagar') totalPagar += row.valor;
       else if (row.type === 'glosa') totalGlosas += row.valor;
 
-      const dest = (row as any).destinatario || 'NAO_INFORMADO';
+      let dest = (row as any).destinatario || 'NAO_INFORMADO';
+      
+      // Se não tem destinatário, mas a origem é RGPS, assume RGPS para casar o glosa com o receber
+      if (dest === 'NAO_INFORMADO' && row.origem === 'RGPS') {
+        dest = 'RGPS';
+      }
+
       const key = `${row.cpf}_${dest}`;
 
       if (!serverMap.has(key)) {
@@ -356,7 +367,8 @@ export default function ImportarPage() {
           receber: 0,
           pagar: 0,
           glosa: 0,
-          destinatario: dest
+          destinatario: dest,
+          observacoes: []
         });
       }
       
@@ -364,6 +376,10 @@ export default function ImportarPage() {
       if (row.type === 'receber') s.receber += row.valor;
       else if (row.type === 'pagar') s.pagar += row.valor;
       else if (row.type === 'glosa') s.glosa += row.valor;
+      
+      if (row.observacao) {
+        s.observacoes.push(row.observacao);
+      }
       
       // Update name if we found a better one than "Servidor a Identificar"
       if (s.name === 'Servidor a Identificar' && row.nome !== 'Servidor a Identificar') {
@@ -394,7 +410,8 @@ export default function ImportarPage() {
           pagar: data.pagar,
           glosa: data.glosa,
           value: netValue,
-          destinatario: (data as any).destinatario
+          destinatario: (data as any).destinatario,
+          observacao: Array.from(new Set(data.observacoes)).join(' / ')
         });
       } else {
         naoDefinido += netValue;
@@ -418,7 +435,8 @@ export default function ImportarPage() {
           pagar: data.pagar,
           glosa: data.glosa,
           value: netValue,
-          destinatario: (data as any).destinatario
+          destinatario: (data as any).destinatario,
+          observacao: Array.from(new Set(data.observacoes)).join(' / ')
         });
       }
     });
@@ -505,7 +523,11 @@ export default function ImportarPage() {
         s.name,
         s.origin || 'RGPS',
         s.fund === 'FUNDO_FINANCEIRO' ? 'FF' : s.fund === 'FUNDO_PREVIDENCIARIO' ? 'FP' : '-',
-        s.value.toString().replace('.', ',')
+        s.value.toString().replace('.', ','),
+        s.receber.toString().replace('.', ','),
+        s.pagar.toString().replace('.', ','),
+        s.glosa.toString().replace('.', ','),
+        s.observacao || ''
       ]);
       try {
         await batchAppendPaymentsToSheet(token, spreadsheetId, paymentRows);

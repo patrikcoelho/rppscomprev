@@ -26,6 +26,7 @@ export interface ReportServer {
   glosa: number;
   value: number;
   destinatario?: string;
+  observacao?: string;
 }
 
 export interface ReconciliationReport {
