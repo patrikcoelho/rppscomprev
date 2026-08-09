@@ -116,7 +116,7 @@ export default function ImportarPage() {
   
   const [newServersCount, setNewServersCount] = useState(0);
   const [reportServers, setReportServers] = useState<ReportServer[]>([]);
-  const [paymentDate, setPaymentDate] = useState('');
+  const [paymentDates, setPaymentDates] = useState<Record<string, string>>({});
 
   const institutionExpectedTotals = useMemo(() => {
     const map = new Map<string, number>();
@@ -498,11 +498,7 @@ export default function ImportarPage() {
   };
 
   const handleSaveAndProcess = async () => {
-    const received = parseInputValue(receivedTotalStr);
-    if (isNaN(received) || received === 0) {
-      alert('Por favor, informe o valor recebido válido.');
-      return;
-    }
+    const globalReceivedTotal = Object.values(receivedTotals).reduce((sum, str) => sum + parseInputValue(str), 0);
 
     // 1. Add pending servers
     const existingCpfs = new Set(sheetServers.map(s => normalizeCpf(s.cpf)));
@@ -537,9 +533,6 @@ export default function ImportarPage() {
       const importId = `IMP-${Date.now()}`;
       const importDate = new Date().toLocaleString('pt-BR');
       const comp = competencia || new Date().toISOString().substring(0, 7);
-      const dateStr = paymentDate || '';
-      
-      const globalReceivedTotal = Object.values(receivedTotals).reduce((sum, str) => sum + parseInputValue(str), 0);
       
       const expectedTotalStr = totals.liquido.toString().replace('.', ',');
       const receivedTotalStrVal = globalReceivedTotal.toString().replace('.', ',');
@@ -549,6 +542,7 @@ export default function ImportarPage() {
         const dest = s.destinatario || 'NAO_INFORMADO';
         const instReceivedStr = receivedTotals[dest] || '0';
         const instReceivedVal = parseInputValue(instReceivedStr).toString().replace('.', ',');
+        const dateStr = paymentDates[dest] || '';
         
         return [
         importId,
@@ -746,17 +740,39 @@ export default function ImportarPage() {
                           <h5 className="font-bold text-slate-800">{inst.name}</h5>
                           <span className="text-sm font-medium text-slate-500">Esperado: {formatCurrency(inst.total)}</span>
                         </div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Valor Recebido na Conta (R$)</label>
-                        <input
-                          type="text"
-                          placeholder="0,00"
-                          value={receivedTotals[inst.name] || ''}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/[^0-9.,]/g, '');
-                            setReceivedTotals(prev => ({ ...prev, [inst.name]: val }));
-                          }}
-                          className="w-full text-lg px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 font-bold text-slate-900"
-                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Valor Recebido na Conta (R$)</label>
+                            <input
+                              type="text"
+                              placeholder="0,00"
+                              value={receivedTotals[inst.name] || ''}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9.,]/g, '');
+                                setReceivedTotals(prev => ({ ...prev, [inst.name]: val }));
+                              }}
+                              className="w-full text-lg px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 font-bold text-slate-900"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Data do Pagamento (Opcional)</label>
+                            <input
+                              type="text"
+                              placeholder="DD/MM/AAAA"
+                              value={paymentDates[inst.name] || ''}
+                              onChange={(e) => {
+                                let val = e.target.value.replace(/\D/g, '').slice(0, 8);
+                                if (val.length >= 5) {
+                                  val = `${val.slice(0, 2)}/${val.slice(2, 4)}/${val.slice(4)}`;
+                                } else if (val.length >= 3) {
+                                  val = `${val.slice(0, 2)}/${val.slice(2)}`;
+                                }
+                                setPaymentDates(prev => ({ ...prev, [inst.name]: val }));
+                              }}
+                              className="w-full text-lg px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+                            />
+                          </div>
+                        </div>
                         {(receivedTotals[inst.name] && !isNaN(received) && received > 0 && Math.abs(diff) > 0.01) && (
                           <div className="mt-2 text-sm font-medium text-red-600 flex items-center gap-1">
                             <AlertTriangle className="w-4 h-4" /> Diferença: {formatCurrency(diff)}
@@ -770,25 +786,6 @@ export default function ImportarPage() {
                       </div>
                     );
                   })}
-                </div>
-                
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Data do Pagamento (Opcional)</label>
-                  <input
-                    type="text"
-                    placeholder="DD/MM/AAAA"
-                    value={paymentDate}
-                    onChange={e => {
-                      let val = e.target.value.replace(/\D/g, '').slice(0, 8);
-                      if (val.length >= 5) {
-                        val = `${val.slice(0, 2)}/${val.slice(2, 4)}/${val.slice(4)}`;
-                      } else if (val.length >= 3) {
-                        val = `${val.slice(0, 2)}/${val.slice(2)}`;
-                      }
-                      setPaymentDate(val);
-                    }}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-slate-900"
-                  />
                 </div>
 
                 {(() => {

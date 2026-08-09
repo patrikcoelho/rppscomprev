@@ -278,7 +278,8 @@ export async function fetchImportDetailsFromSheet(token: string, spreadsheetId: 
         pagar: parseNumber(row[14]),
         glosa: parseNumber(row[15]),
         observacao: row[16] || '',
-        juros: parseNumber(row[17])
+        juros: parseNumber(row[17]),
+        paymentDate: parseSheetDate(row[3])
       });
     }
   }

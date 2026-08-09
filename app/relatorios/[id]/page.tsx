@@ -261,7 +261,7 @@ export default function RelatorioDetalhesPage({ params }: { params: Promise<{ id
               title={dest}
               competencia={report.competencia}
               servers={serversGroup}
-              paymentDate={report.paymentDate}
+              paymentDate={serversGroup[0]?.paymentDate || report.paymentDate}
               footerLabel="TOTAL DO DESTINATÁRIO:"
               receivedValue={report.receivedByInstitution?.[dest]}
             />
