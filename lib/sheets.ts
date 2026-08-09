@@ -21,6 +21,15 @@ export function parseSheetDate(value: any): string {
   return String(value);
 }
 
+export function parseCompetencia(value: any): string {
+  const str = parseSheetDate(value);
+  // Se estiver no formato DD/MM/YYYY, remove o DD/ para ficar só MM/YYYY (Competência)
+  if (str.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+    return str.substring(3);
+  }
+  return str;
+}
+
 export async function updateServerInSheet(token: string, spreadsheetId: string, rowIndex: number, server: Server) {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Servidores!A${rowIndex}:E${rowIndex}?valueInputOption=USER_ENTERED`;
   const row = [server.name, server.cpf, server.fund, server.entryDate || '', server.origin];
@@ -191,7 +200,7 @@ export async function fetchImportsFromSheet(token: string, spreadsheetId: string
       importsMap.set(importId, {
         id: importId,
         importDate: parseSheetDate(row[1]),
-        competencia: parseSheetDate(row[2]),
+        competencia: parseCompetencia(row[2]),
         expectedTotal: parseNumber(row[4]),
         receivedTotal: parseNumber(row[5])
       });
@@ -244,7 +253,7 @@ export async function fetchImportDetailsFromSheet(token: string, spreadsheetId: 
       if (!found) {
         found = true;
         details.importDate = parseSheetDate(row[1]);
-        details.competencia = parseSheetDate(row[2]);
+        details.competencia = parseCompetencia(row[2]);
         details.paymentDate = parseSheetDate(row[3]);
         details.expectedTotal = parseNumber(row[4]);
         details.receivedTotal = parseNumber(row[5]);
