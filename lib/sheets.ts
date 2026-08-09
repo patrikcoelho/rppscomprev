@@ -115,7 +115,7 @@ export async function appendPaymentToSheet(token: string, spreadsheetId: string,
 }
 
 export async function batchAppendPaymentsToSheet(token: string, spreadsheetId: string, rows: any[][]) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:Q:append?valueInputOption=USER_ENTERED`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:R:append?valueInputOption=USER_ENTERED`;
   
   const res = await fetch(url, {
     method: 'POST',
@@ -171,7 +171,7 @@ export interface ImportSummary {
 }
 
 export async function fetchImportsFromSheet(token: string, spreadsheetId: string): Promise<ImportSummary[]> {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:Q?valueRenderOption=UNFORMATTED_VALUE`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:R?valueRenderOption=UNFORMATTED_VALUE`;
   const res = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -219,7 +219,7 @@ function parseNumber(val: any): number {
 }
 
 export async function fetchImportDetailsFromSheet(token: string, spreadsheetId: string, importId: string) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:Q?valueRenderOption=UNFORMATTED_VALUE`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:R?valueRenderOption=UNFORMATTED_VALUE`;
   const res = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -270,7 +270,8 @@ export async function fetchImportDetailsFromSheet(token: string, spreadsheetId: 
         receber: parseNumber(row[13]),
         pagar: parseNumber(row[14]),
         glosa: parseNumber(row[15]),
-        observacao: row[16] || ''
+        observacao: row[16] || '',
+        juros: parseNumber(row[17])
       });
     }
   }

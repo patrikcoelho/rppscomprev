@@ -27,6 +27,7 @@ export interface ReportServer {
   value: number;
   destinatario?: string;
   observacao?: string;
+  juros?: number;
 }
 
 export interface ReconciliationReport {

@@ -96,6 +96,10 @@ export default function ImportarPage() {
   
   const [receivedTotalStr, setReceivedTotalStr] = useState('');
   
+  const [selectedServerForJuros, setSelectedServerForJuros] = useState('');
+  const [jurosValueStr, setJurosValueStr] = useState('');
+  const [jurosObservacao, setJurosObservacao] = useState('');
+  
   // Results
   const [fundsTotal, setFundsTotal] = useState<Record<Fund, number>>({
     FUNDO_FINANCEIRO: 0,
@@ -125,6 +129,7 @@ export default function ImportarPage() {
       Papa.parse(file, {
         header: false,
         skipEmptyLines: true,
+        encoding: 'ISO-8859-1',
         complete: (results) => {
           const data = results.data as string[][];
 
@@ -545,7 +550,8 @@ export default function ImportarPage() {
         s.receber.toString().replace('.', ','),
         s.pagar.toString().replace('.', ','),
         s.glosa.toString().replace('.', ','),
-        s.observacao || ''
+        s.observacao || '',
+        (s.juros || 0).toString().replace('.', ',')
       ]);
       try {
         await batchAppendPaymentsToSheet(token, spreadsheetId, paymentRows);
@@ -558,6 +564,40 @@ export default function ImportarPage() {
     // 3. Save Report is no longer needed locally as we read from Sheets
     
     router.push('/');
+  };
+
+  const handleApplyJuros = () => {
+    const jurosVal = parseInputValue(jurosValueStr);
+    if (jurosVal === 0) return alert('Valor de juros inválido');
+    if (!selectedServerForJuros) return alert('Selecione um servidor');
+
+    const newServers = [...reportServers];
+    const idx = newServers.findIndex(s => s.cpf === selectedServerForJuros);
+    if (idx >= 0) {
+      newServers[idx].juros = (newServers[idx].juros || 0) + jurosVal;
+      newServers[idx].value = (newServers[idx].value || 0) + jurosVal;
+      if (jurosObservacao) {
+        newServers[idx].observacao = newServers[idx].observacao 
+          ? `${newServers[idx].observacao} / Juros: ${jurosObservacao}`
+          : `Juros: ${jurosObservacao}`;
+      }
+      setReportServers(newServers);
+      
+      setTotals(prev => ({
+        ...prev,
+        liquido: prev.liquido + jurosVal
+      }));
+      
+      const fund = newServers[idx].fund;
+      setFundsTotal(prev => ({
+        ...prev,
+        [fund]: prev[fund] + jurosVal
+      }));
+      
+      setJurosValueStr('');
+      setJurosObservacao('');
+      setSelectedServerForJuros('');
+    }
   };
 
   return (
@@ -725,6 +765,63 @@ export default function ImportarPage() {
                           ? "Os valores conferem perfeitamente. Você pode prosseguir."
                           : "Há uma divergência entre o líquido dos arquivos e o valor em conta. Verifique antes de prosseguir."}
                       </p>
+                    </div>
+                  </div>
+                )}
+                
+                {receivedTotalStr && !isNaN(parseInputValue(receivedTotalStr)) && parseInputValue(receivedTotalStr) > 0 && Math.abs(totals.liquido - parseInputValue(receivedTotalStr)) > 0.01 && (
+                  <div className="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm">
+                    <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-slate-500" />
+                      Justificar Diferença (Juros/Correção)
+                    </h4>
+                    <p className="text-sm text-slate-600 mb-4">
+                      Se o pagamento foi feito com atraso e há juros ou atualização monetária, atribua a diferença a um servidor. O valor líquido esperado aumentará.
+                    </p>
+                    
+                    <div className="flex flex-col gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Servidor</label>
+                        <select 
+                          className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                          value={selectedServerForJuros}
+                          onChange={e => setSelectedServerForJuros(e.target.value)}
+                        >
+                          <option value="">Selecione um servidor...</option>
+                          {reportServers.map(s => (
+                            <option key={s.cpf} value={s.cpf}>{s.name} ({s.cpf})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Valor dos Juros (R$)</label>
+                          <input
+                            type="text"
+                            className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="R$ 0,00"
+                            value={jurosValueStr}
+                            onChange={e => setJurosValueStr(e.target.value.replace(/[^0-9.,\-]/g, ''))}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Motivo / Obs</label>
+                          <input
+                            type="text"
+                            className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Ex: Juros por atraso"
+                            value={jurosObservacao}
+                            onChange={e => setJurosObservacao(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleApplyJuros}
+                        disabled={!selectedServerForJuros || !jurosValueStr}
+                        className="w-full mt-2 bg-slate-800 text-white rounded-lg p-2.5 text-sm font-medium hover:bg-slate-700 disabled:opacity-50 transition-colors"
+                      >
+                        Adicionar Ajuste
+                      </button>
                     </div>
                   </div>
                 )}
