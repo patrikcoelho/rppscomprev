@@ -42,6 +42,7 @@ export interface ReconciliationReport {
   difference: number;
   fundsTotal: Record<Fund, number>;
   paymentDate?: string;
+  receivedByInstitution?: Record<string, number>;
   fileNames: {
     receber: string;
     pagar?: string;

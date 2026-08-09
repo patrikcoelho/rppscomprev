@@ -115,7 +115,7 @@ export async function appendPaymentToSheet(token: string, spreadsheetId: string,
 }
 
 export async function batchAppendPaymentsToSheet(token: string, spreadsheetId: string, rows: any[][]) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:R:append?valueInputOption=USER_ENTERED`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:S:append?valueInputOption=USER_ENTERED`;
   
   const res = await fetch(url, {
     method: 'POST',
@@ -171,7 +171,7 @@ export interface ImportSummary {
 }
 
 export async function fetchImportsFromSheet(token: string, spreadsheetId: string): Promise<ImportSummary[]> {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:R?valueRenderOption=UNFORMATTED_VALUE`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:S?valueRenderOption=UNFORMATTED_VALUE`;
   const res = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -219,7 +219,7 @@ function parseNumber(val: any): number {
 }
 
 export async function fetchImportDetailsFromSheet(token: string, spreadsheetId: string, importId: string) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:R?valueRenderOption=UNFORMATTED_VALUE`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Pagamentos!A:S?valueRenderOption=UNFORMATTED_VALUE`;
   const res = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -242,7 +242,8 @@ export async function fetchImportDetailsFromSheet(token: string, spreadsheetId: 
     expectedTotal: 0,
     receivedTotal: 0,
     difference: 0,
-    servers: [] as any[]
+    servers: [] as any[],
+    receivedByInstitution: {} as Record<string, number>
   };
   
   let found = false;
@@ -260,8 +261,14 @@ export async function fetchImportDetailsFromSheet(token: string, spreadsheetId: 
         details.difference = parseNumber(row[6]);
       }
       
+      const destinatario = row[7] || 'NAO_INFORMADO';
+
+      if (typeof row[18] !== 'undefined' && !(destinatario in details.receivedByInstitution)) {
+        details.receivedByInstitution[destinatario] = parseNumber(row[18]);
+      }
+      
       details.servers.push({
-        destinatario: row[7] || 'NAO_INFORMADO',
+        destinatario: destinatario,
         cpf: String(row[8] || '').replace(/\D/g, '').padStart(11, '0'),
         name: row[9] || '',
         origin: row[10] || 'RGPS',

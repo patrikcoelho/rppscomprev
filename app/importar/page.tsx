@@ -94,7 +94,7 @@ export default function ImportarPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState<1 | 2>(1); // 1: Upload, 2: Reconciliation
   
-  const [receivedTotalStr, setReceivedTotalStr] = useState('');
+  const [receivedTotals, setReceivedTotals] = useState<Record<string, string>>({});
   
   const [selectedServerForJuros, setSelectedServerForJuros] = useState('');
   const [jurosValueStr, setJurosValueStr] = useState('');
@@ -117,6 +117,15 @@ export default function ImportarPage() {
   const [newServersCount, setNewServersCount] = useState(0);
   const [reportServers, setReportServers] = useState<ReportServer[]>([]);
   const [paymentDate, setPaymentDate] = useState('');
+
+  const institutionExpectedTotals = useMemo(() => {
+    const map = new Map<string, number>();
+    reportServers.forEach(s => {
+      const dest = s.destinatario || 'NAO_INFORMADO';
+      map.set(dest, (map.get(dest) || 0) + (s.value || 0));
+    });
+    return Array.from(map.entries()).map(([name, total]) => ({ name, total }));
+  }, [reportServers]);
 
   const normalizeCpf = (c: string | number) => String(c).replace(/\D/g, '').padStart(11, '0');
 
@@ -529,11 +538,19 @@ export default function ImportarPage() {
       const importDate = new Date().toLocaleString('pt-BR');
       const comp = competencia || new Date().toISOString().substring(0, 7);
       const dateStr = paymentDate || '';
-      const expectedTotalStr = totals.liquido.toString().replace('.', ',');
-      const receivedTotalStrVal = parseInputValue(receivedTotalStr).toString().replace('.', ',');
-      const differenceStr = (totals.liquido - parseInputValue(receivedTotalStr)).toString().replace('.', ',');
       
-      const paymentRows = reportServers.map(s => [
+      const globalReceivedTotal = Object.values(receivedTotals).reduce((sum, str) => sum + parseInputValue(str), 0);
+      
+      const expectedTotalStr = totals.liquido.toString().replace('.', ',');
+      const receivedTotalStrVal = globalReceivedTotal.toString().replace('.', ',');
+      const differenceStr = (totals.liquido - globalReceivedTotal).toString().replace('.', ',');
+      
+      const paymentRows = reportServers.map(s => {
+        const dest = s.destinatario || 'NAO_INFORMADO';
+        const instReceivedStr = receivedTotals[dest] || '0';
+        const instReceivedVal = parseInputValue(instReceivedStr).toString().replace('.', ',');
+        
+        return [
         importId,
         importDate,
         comp,
@@ -551,8 +568,9 @@ export default function ImportarPage() {
         s.pagar.toString().replace('.', ','),
         s.glosa.toString().replace('.', ','),
         s.observacao || '',
-        (s.juros || 0).toString().replace('.', ',')
-      ]);
+        (s.juros || 0).toString().replace('.', ','),
+        instReceivedVal
+      ]});
       try {
         await batchAppendPaymentsToSheet(token, spreadsheetId, paymentRows);
       } catch(e) {
@@ -719,14 +737,39 @@ export default function ImportarPage() {
                 </h4>
                 
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Valor Recebido na Conta (R$)</label>
-                  <input
-                    type="text"
-                    placeholder="0,00"
-                    value={receivedTotalStr}
-                    onChange={(e) => setReceivedTotalStr(e.target.value.replace(/[^0-9.,]/g, ''))}
-                    className="w-full text-2xl px-4 py-3 border border-slate-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 font-bold text-slate-900"
-                  />
+                  {institutionExpectedTotals.map(inst => {
+                    const received = parseInputValue(receivedTotals[inst.name] || '0');
+                    const diff = inst.total - received;
+                    return (
+                      <div key={inst.name} className="mb-4 p-4 border border-slate-200 rounded-lg bg-white">
+                        <div className="flex justify-between items-center mb-3">
+                          <h5 className="font-bold text-slate-800">{inst.name}</h5>
+                          <span className="text-sm font-medium text-slate-500">Esperado: {formatCurrency(inst.total)}</span>
+                        </div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Valor Recebido na Conta (R$)</label>
+                        <input
+                          type="text"
+                          placeholder="0,00"
+                          value={receivedTotals[inst.name] || ''}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9.,]/g, '');
+                            setReceivedTotals(prev => ({ ...prev, [inst.name]: val }));
+                          }}
+                          className="w-full text-lg px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 font-bold text-slate-900"
+                        />
+                        {(receivedTotals[inst.name] && !isNaN(received) && received > 0 && Math.abs(diff) > 0.01) && (
+                          <div className="mt-2 text-sm font-medium text-red-600 flex items-center gap-1">
+                            <AlertTriangle className="w-4 h-4" /> Diferença: {formatCurrency(diff)}
+                          </div>
+                        )}
+                        {(receivedTotals[inst.name] && !isNaN(received) && received > 0 && Math.abs(diff) <= 0.01) && (
+                          <div className="mt-2 text-sm font-medium text-emerald-600 flex items-center gap-1">
+                            <CheckCircle className="w-4 h-4" /> Bateu perfeitamente!
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
                 
                 <div className="mb-6">
@@ -748,83 +791,99 @@ export default function ImportarPage() {
                   />
                 </div>
 
-                {receivedTotalStr && !isNaN(parseInputValue(receivedTotalStr)) && parseInputValue(receivedTotalStr) > 0 && (
-                  <div className={clsx(
-                    "p-4 rounded-lg border flex items-start gap-3",
-                    Math.abs(totals.liquido - parseInputValue(receivedTotalStr)) < 0.01 
-                      ? "bg-emerald-50 border-emerald-200 text-emerald-800" 
-                      : "bg-red-50 border-red-200 text-red-800"
-                  )}>
-                    <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold mb-1">
-                        Diferença: {formatCurrency(totals.liquido - parseInputValue(receivedTotalStr))}
-                      </p>
-                      <p className="text-sm opacity-90">
-                        {Math.abs(totals.liquido - parseInputValue(receivedTotalStr)) < 0.01 
-                          ? "Os valores conferem perfeitamente. Você pode prosseguir."
-                          : "Há uma divergência entre o líquido dos arquivos e o valor em conta. Verifique antes de prosseguir."}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                
-                {receivedTotalStr && !isNaN(parseInputValue(receivedTotalStr)) && parseInputValue(receivedTotalStr) > 0 && Math.abs(totals.liquido - parseInputValue(receivedTotalStr)) > 0.01 && (
-                  <div className="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm">
-                    <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-slate-500" />
-                      Justificar Diferença (Juros/Correção)
-                    </h4>
-                    <p className="text-sm text-slate-600 mb-4">
-                      Se o pagamento foi feito com atraso e há juros ou atualização monetária, atribua a diferença a um servidor. O valor líquido esperado aumentará.
-                    </p>
-                    
-                    <div className="flex flex-col gap-3">
+                {(() => {
+                  const hasAnyInput = Object.values(receivedTotals).some(val => parseInputValue(val) > 0);
+                  const globalReceived = Object.values(receivedTotals).reduce((sum, val) => sum + parseInputValue(val), 0);
+                  const globalDiff = totals.liquido - globalReceived;
+                  
+                  if (!hasAnyInput) return null;
+
+                  return (
+                    <div className={clsx(
+                      "p-4 rounded-lg border flex items-start gap-3 mt-4",
+                      Math.abs(globalDiff) < 0.01 
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-800" 
+                        : "bg-red-50 border-red-200 text-red-800"
+                    )}>
+                      <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                       <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-1">Servidor</label>
-                        <select 
-                          className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                          value={selectedServerForJuros}
-                          onChange={e => setSelectedServerForJuros(e.target.value)}
-                        >
-                          <option value="">Selecione um servidor...</option>
-                          {reportServers.map(s => (
-                            <option key={s.cpf} value={s.cpf}>{s.name} ({s.cpf})</option>
-                          ))}
-                        </select>
+                        <p className="font-semibold mb-1">
+                          Diferença Global: {formatCurrency(globalDiff)}
+                        </p>
+                        <p className="text-sm opacity-90">
+                          {Math.abs(globalDiff) < 0.01 
+                            ? "A soma de todos os recebimentos bate com o líquido. Você pode prosseguir."
+                            : "Há uma divergência global. Verifique antes de prosseguir."}
+                        </p>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-600 mb-1">Valor dos Juros (R$)</label>
-                          <input
-                            type="text"
-                            className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="R$ 0,00"
-                            value={jurosValueStr}
-                            onChange={e => setJurosValueStr(e.target.value.replace(/[^0-9.,\-]/g, ''))}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-600 mb-1">Motivo / Obs</label>
-                          <input
-                            type="text"
-                            className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Ex: Juros por atraso"
-                            value={jurosObservacao}
-                            onChange={e => setJurosObservacao(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      <button
-                        onClick={handleApplyJuros}
-                        disabled={!selectedServerForJuros || !jurosValueStr}
-                        className="w-full mt-2 bg-slate-800 text-white rounded-lg p-2.5 text-sm font-medium hover:bg-slate-700 disabled:opacity-50 transition-colors"
-                      >
-                        Adicionar Ajuste
-                      </button>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
+                
+                {(() => {
+                  const hasAnyInput = Object.values(receivedTotals).some(val => parseInputValue(val) > 0);
+                  const globalReceived = Object.values(receivedTotals).reduce((sum, val) => sum + parseInputValue(val), 0);
+                  const globalDiff = totals.liquido - globalReceived;
+                  
+                  if (!hasAnyInput || Math.abs(globalDiff) <= 0.01) return null;
+                  
+                  return (
+                    <div className="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm">
+                      <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-slate-500" />
+                        Justificar Diferença (Juros/Correção)
+                      </h4>
+                      <p className="text-sm text-slate-600 mb-4">
+                        Se o pagamento foi feito com atraso e há juros ou atualização monetária, atribua a diferença a um servidor. O valor líquido esperado aumentará.
+                      </p>
+                      
+                      <div className="flex flex-col gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Servidor</label>
+                          <select 
+                            className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            value={selectedServerForJuros}
+                            onChange={e => setSelectedServerForJuros(e.target.value)}
+                          >
+                            <option value="">Selecione um servidor...</option>
+                            {reportServers.map(s => (
+                              <option key={s.cpf} value={s.cpf}>{s.name} ({s.cpf} - {s.destinatario || 'RGPS'})</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">Valor dos Juros (R$)</label>
+                            <input
+                              type="text"
+                              className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="R$ 0,00"
+                              value={jurosValueStr}
+                              onChange={e => setJurosValueStr(e.target.value.replace(/[^0-9.,\-]/g, ''))}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">Motivo / Obs</label>
+                            <input
+                              type="text"
+                              className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="Ex: Juros por atraso"
+                              value={jurosObservacao}
+                              onChange={e => setJurosObservacao(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleApplyJuros}
+                          disabled={!selectedServerForJuros || !jurosValueStr}
+                          className="w-full mt-2 bg-slate-800 text-white rounded-lg p-2.5 text-sm font-medium hover:bg-slate-700 disabled:opacity-50 transition-colors"
+                        >
+                          Adicionar Ajuste
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
             

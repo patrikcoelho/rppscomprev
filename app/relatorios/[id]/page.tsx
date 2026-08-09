@@ -20,6 +20,7 @@ function FundTable({
   servers: any[];
   paymentDate?: string;
   footerLabel?: string;
+  receivedValue?: number;
 }) {
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -112,6 +113,25 @@ function FundTable({
           </tr>
         </tfoot>
       </table>
+      
+      {receivedValue !== undefined && (
+        <div className="mt-4 flex flex-wrap gap-4 items-center p-4 bg-slate-50 border border-slate-200 rounded-lg justify-end">
+          <div className="text-sm">
+            <span className="text-slate-500 font-medium mr-2">Esperado:</span>
+            <span className="font-bold text-slate-800">{formatCurrency(totalValue)}</span>
+          </div>
+          <div className="text-sm">
+            <span className="text-slate-500 font-medium mr-2">Recebido:</span>
+            <span className="font-bold text-blue-700">{formatCurrency(receivedValue)}</span>
+          </div>
+          <div className="text-sm border-l border-slate-300 pl-4">
+            <span className="text-slate-500 font-medium mr-2">Diferença:</span>
+            <span className={Math.abs(totalValue - receivedValue) > 0.01 ? "font-bold text-red-600" : "font-bold text-emerald-600"}>
+              {formatCurrency(totalValue - receivedValue)}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -243,6 +263,7 @@ export default function RelatorioDetalhesPage({ params }: { params: Promise<{ id
               servers={serversGroup}
               paymentDate={report.paymentDate}
               footerLabel="TOTAL DO DESTINATÁRIO:"
+              receivedValue={report.receivedByInstitution?.[dest]}
             />
           ))}
         </div>
