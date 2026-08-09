@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useStore, Fund, Server, ReportServer } from '@/lib/store';
 import { UploadCloud, CheckCircle, AlertTriangle, FileText, ArrowRight, Plus } from 'lucide-react';
 import Papa from 'papaparse';
