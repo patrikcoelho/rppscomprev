@@ -5,6 +5,12 @@ export function parseSheetDate(value: any): string {
   let numVal = Number(value);
   if (!isNaN(numVal) && String(value).trim() !== '') {
     const date = new Date(Math.round((numVal - 25569) * 86400 * 1000));
+    // Se tiver parte fracionária, é data e hora
+    if (numVal % 1 !== 0) {
+      const d = date.toISOString().split('T')[0].split('-').reverse().join('/');
+      const t = date.toISOString().split('T')[1].substring(0, 5); // HH:MM
+      return `${d} ${t}`;
+    }
     return date.toISOString().split('T')[0].split('-').reverse().join('/');
   }
   if (typeof value === 'string') {
@@ -184,8 +190,8 @@ export async function fetchImportsFromSheet(token: string, spreadsheetId: string
     if (!importsMap.has(importId)) {
       importsMap.set(importId, {
         id: importId,
-        importDate: row[1] || '',
-        competencia: row[2] || '',
+        importDate: parseSheetDate(row[1]),
+        competencia: parseSheetDate(row[2]),
         expectedTotal: parseNumber(row[4]),
         receivedTotal: parseNumber(row[5])
       });
