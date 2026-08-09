@@ -36,7 +36,7 @@ export default function RelatoriosPage() {
   };
 
   const filteredReports = imports
-    .filter(r => r.competencia.toLowerCase().includes(searchTerm.toLowerCase()));
+    .filter(r => String(r.competencia).toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="p-8 max-w-7xl mx-auto w-full">
