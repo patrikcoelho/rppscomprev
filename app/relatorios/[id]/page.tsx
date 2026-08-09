@@ -135,7 +135,13 @@ export default function RelatorioDetalhesPage({ params }: { params: Promise<{ id
   const groups: Record<string, any[]> = {};
   
   mappedServers.forEach((s: any) => {
-    const dest = s.destinatario && s.destinatario !== 'NAO_INFORMADO' ? s.destinatario : 'DESTINATÁRIO NÃO INFORMADO';
+    let dest = s.destinatario && s.destinatario !== 'NAO_INFORMADO' ? s.destinatario : 'DESTINATÁRIO NÃO INFORMADO';
+    
+    // Se não tem destinatário informado, mas o servidor é do RGPS, agrupa no RGPS
+    if (dest === 'DESTINATÁRIO NÃO INFORMADO' && s.origin === 'RGPS') {
+      dest = 'RGPS';
+    }
+
     if (!groups[dest]) groups[dest] = [];
     groups[dest].push(s);
   });
