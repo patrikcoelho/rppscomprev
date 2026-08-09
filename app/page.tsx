@@ -12,8 +12,10 @@ import {
   Loader2
 } from 'lucide-react';
 import Link from 'next/link';
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import dynamic from 'next/dynamic';
 import { useAuth } from '@/components/AuthProvider';
+
+const DashboardChart = dynamic(() => import('@/components/DashboardChart'), { ssr: false });
 import { fetchServersFromSheet, fetchImportsFromSheet, ImportSummary } from '@/lib/sheets';
 import { useState, useEffect } from 'react';
 import { Server } from '@/lib/store';
@@ -133,39 +135,12 @@ export default function Dashboard() {
           </div>
           
           {isLoading ? (
-            <div className="h-72 w-full flex flex-col items-center justify-center text-slate-400">
-              <Loader2 className="w-12 h-12 mb-3 text-blue-500 animate-spin" />
-              <p>Carregando dados da planilha...</p>
+            <div className="h-72 w-full flex items-center justify-center">
+              <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
             </div>
           ) : chartData.length > 0 ? (
             <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorFin" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorPrev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 12, fill: '#64748b' }} 
-                    tickFormatter={(val) => `R$ ${(val/1000).toFixed(0)}k`}
-                  />
-                  <Tooltip 
-                    formatter={(value: any) => formatCurrency(value)}
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  />
-                  <Area type="monotone" dataKey="esperado" name="Valor Esperado" stroke="#4f46e5" strokeWidth={2} fillOpacity={1} fill="url(#colorFin)" />
-                  <Area type="monotone" dataKey="recebido" name="Valor Recebido" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorPrev)" />
-                </AreaChart>
-              </ResponsiveContainer>
+              <DashboardChart data={chartData} />
             </div>
           ) : (
             <div className="h-72 w-full flex flex-col items-center justify-center text-slate-400">
