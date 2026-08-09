@@ -1,13 +1,15 @@
 'use client';
 
 import { useAuth } from '@/components/AuthProvider';
+import { useStore } from '@/lib/store';
 import { fetchImportsFromSheet, ImportSummary } from '@/lib/sheets';
 import { ArrowRight, FileText, Search, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
 export default function RelatoriosPage() {
-  const { token, spreadsheetId } = useAuth();
+  const { token } = useAuth();
+  const { spreadsheetId } = useStore();
   const [imports, setImports] = useState<ImportSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
