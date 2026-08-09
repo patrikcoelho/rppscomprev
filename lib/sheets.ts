@@ -243,9 +243,9 @@ export async function fetchImportDetailsFromSheet(token: string, spreadsheetId: 
     if (row[0] === importId) {
       if (!found) {
         found = true;
-        details.importDate = row[1] || '';
-        details.competencia = row[2] || '';
-        details.paymentDate = row[3] || '';
+        details.importDate = parseSheetDate(row[1]);
+        details.competencia = parseSheetDate(row[2]);
+        details.paymentDate = parseSheetDate(row[3]);
         details.expectedTotal = parseNumber(row[4]);
         details.receivedTotal = parseNumber(row[5]);
         details.difference = parseNumber(row[6]);
