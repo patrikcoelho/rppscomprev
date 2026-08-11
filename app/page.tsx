@@ -217,8 +217,10 @@ export default function Dashboard() {
                           <td className="px-4 py-3 text-right">{formatCurrency(item.expectedTotal)}</td>
                           <td className="px-4 py-3 text-right font-medium text-emerald-600">{formatCurrency(item.receivedTotal)}</td>
                           <td className="px-4 py-3 text-right">
-                            {item.expectedTotal - item.receivedTotal > 0.01 ? (
-                              <span className="text-amber-600 font-medium">-{formatCurrency(item.expectedTotal - item.receivedTotal)}</span>
+                            {Math.abs(item.expectedTotal - item.receivedTotal) > 0.01 ? (
+                              <span className={item.expectedTotal > item.receivedTotal ? "text-amber-600 font-medium" : "text-blue-600 font-medium"}>
+                                {item.expectedTotal > item.receivedTotal ? '-' : '+'}{formatCurrency(Math.abs(item.expectedTotal - item.receivedTotal))}
+                              </span>
                             ) : (
                               <span className="text-slate-400">-</span>
                             )}
