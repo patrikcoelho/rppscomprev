@@ -126,8 +126,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-slate-500 mb-1 truncate">Total Recebido no Ano</p>
-            <p className="text-lg lg:text-xl xl:text-2xl font-bold text-emerald-600 truncate" title={!isLoading ? formatCurrency(totalRecebidoAno) : undefined}>{isLoading ? '-' : formatCurrency(totalRecebidoAno)}</p>
+            <p className="text-sm font-medium text-slate-500 mb-1 leading-tight">Total Recebido no Ano</p>
+            <p className="text-[clamp(1rem,1.5vw,1.5rem)] font-bold text-emerald-600 whitespace-nowrap">{isLoading ? '-' : formatCurrency(totalRecebidoAno)}</p>
           </div>
           <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center shrink-0 ml-3">
             <DollarSign className="w-5 h-5" />
@@ -136,8 +136,8 @@ export default function Dashboard() {
         
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-slate-500 mb-1 truncate">Fundo Financeiro</p>
-            <p className="text-lg lg:text-xl xl:text-2xl font-bold text-indigo-600 truncate" title={!isLoading ? formatCurrency(totalFFAno) : undefined}>{isLoading ? '-' : formatCurrency(totalFFAno)}</p>
+            <p className="text-sm font-medium text-slate-500 mb-1 leading-tight">Fundo Financeiro</p>
+            <p className="text-[clamp(1rem,1.5vw,1.5rem)] font-bold text-indigo-600 whitespace-nowrap">{isLoading ? '-' : formatCurrency(totalFFAno)}</p>
           </div>
           <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0 ml-3">
             <Landmark className="w-5 h-5" />
@@ -146,8 +146,8 @@ export default function Dashboard() {
 
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-slate-500 mb-1 truncate">Fundo Previdenciário</p>
-            <p className="text-lg lg:text-xl xl:text-2xl font-bold text-sky-600 truncate" title={!isLoading ? formatCurrency(totalFPAno) : undefined}>{isLoading ? '-' : formatCurrency(totalFPAno)}</p>
+            <p className="text-sm font-medium text-slate-500 mb-1 leading-tight">Fundo Previdenciário</p>
+            <p className="text-[clamp(1rem,1.5vw,1.5rem)] font-bold text-sky-600 whitespace-nowrap">{isLoading ? '-' : formatCurrency(totalFPAno)}</p>
           </div>
           <div className="w-10 h-10 bg-sky-50 text-sky-600 rounded-lg flex items-center justify-center shrink-0 ml-3">
             <PiggyBank className="w-5 h-5" />
@@ -156,8 +156,8 @@ export default function Dashboard() {
 
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-slate-500 mb-1 truncate">Relatórios no Ano</p>
-            <p className="text-lg lg:text-xl xl:text-2xl font-bold text-slate-900 truncate">{isLoading ? '-' : filteredImports.length}</p>
+            <p className="text-sm font-medium text-slate-500 mb-1 leading-tight">Relatórios no Ano</p>
+            <p className="text-[clamp(1rem,1.5vw,1.5rem)] font-bold text-slate-900 whitespace-nowrap">{isLoading ? '-' : filteredImports.length}</p>
           </div>
           <div className="w-10 h-10 bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center shrink-0 ml-3">
             <FileBox className="w-5 h-5" />
