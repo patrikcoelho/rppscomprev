@@ -2,38 +2,45 @@
 
 import { useStore } from '@/lib/store';
 import { 
-  Users, 
   FileText, 
   AlertCircle, 
-  CheckCircle,
   TrendingUp,
   FileBox,
   ArrowRight,
-  Loader2
+  Loader2,
+  DollarSign,
+  Landmark,
+  PiggyBank,
+  BarChart2,
+  Table as TableIcon
 } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/components/AuthProvider';
+import { useState, useEffect, useMemo } from 'react';
+import { fetchImportsFromSheet, ImportSummary } from '@/lib/sheets';
 
 const DashboardChart = dynamic(() => import('@/components/DashboardChart'), { ssr: false });
-import { fetchServersFromSheet, fetchImportsFromSheet, ImportSummary } from '@/lib/sheets';
-import { useState, useEffect } from 'react';
-import { Server } from '@/lib/store';
 
 export default function Dashboard() {
   const { spreadsheetId } = useStore();
   const { token } = useAuth();
-  const [servers, setServers] = useState<Server[]>([]);
   const [imports, setImports] = useState<ImportSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedYear, setSelectedYear] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
 
   useEffect(() => {
     if (spreadsheetId && token) {
       setIsLoading(true);
-      Promise.all([
-        fetchServersFromSheet(token, spreadsheetId).then(data => setServers(data)),
-        fetchImportsFromSheet(token, spreadsheetId).then(data => setImports(data))
-      ])
+      fetchImportsFromSheet(token, spreadsheetId)
+        .then(data => {
+          setImports(data);
+          const years = Array.from(new Set(data.map(r => r.competencia.split('/')[1]))).filter(Boolean).sort((a, b) => Number(b) - Number(a));
+          if (years.length > 0) {
+            setSelectedYear(years[0]);
+          }
+        })
         .catch((err: any) => {
           console.error(err);
           if (err.message === 'TOKEN_EXPIRED') {
@@ -42,17 +49,31 @@ export default function Dashboard() {
         })
         .finally(() => setIsLoading(false));
     } else {
-      setServers([]);
       setImports([]);
       setIsLoading(false);
     }
   }, [spreadsheetId, token]);
 
-  const totalServers = servers.length;
-  const pendingServers = servers.filter(s => s.status === 'PENDING').length;
-  const activeServers = servers.filter(s => s.status === 'APPROVED').length;
+  const availableYears = useMemo(() => {
+    const years = imports.map(r => r.competencia.split('/')[1]).filter(Boolean);
+    return Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a));
+  }, [imports]);
 
-  const sortedImports = [...imports].sort((a, b) => new Date(a.importDate).getTime() - new Date(b.importDate).getTime());
+  const filteredImports = useMemo(() => {
+    if (!selectedYear) return imports;
+    return imports.filter(r => r.competencia.endsWith(`/${selectedYear}`));
+  }, [imports, selectedYear]);
+
+  const sortedImports = [...filteredImports].sort((a, b) => {
+    const parseDateStr = (dateStr: string) => {
+      const parts = dateStr.split('/');
+      if (parts.length === 2) {
+        return new Date(Number(parts[1]), Number(parts[0]) - 1, 1).getTime();
+      }
+      return 0;
+    };
+    return parseDateStr(a.competencia) - parseDateStr(b.competencia);
+  });
   
   const chartData = sortedImports.map(r => ({
     name: r.competencia,
@@ -60,11 +81,16 @@ export default function Dashboard() {
     recebido: r.receivedTotal,
   }));
 
+  const totalRecebidoAno = filteredImports.reduce((acc, curr) => acc + curr.receivedTotal, 0);
+  const totalFFAno = filteredImports.reduce((acc, curr) => acc + (curr.totalFF || 0), 0);
+  const totalFPAno = filteredImports.reduce((acc, curr) => acc + (curr.totalFP || 0), 0);
+
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(val);
   };
 
-  const lastReport = sortedImports[sortedImports.length - 1];
+  const sortedAllImports = [...imports].sort((a, b) => new Date(a.importDate).getTime() - new Date(b.importDate).getTime());
+  const lastReport = sortedAllImports[sortedAllImports.length - 1];
 
   return (
     <div className="p-8 max-w-7xl mx-auto w-full">
@@ -73,79 +99,141 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-slate-900">Visão Geral</h1>
           <p className="text-slate-500">Acompanhamento de reconciliação bancária do Comprev.</p>
         </div>
-        <Link 
-          href="/importar" 
-          className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
-        >
-          Nova Importação
-        </Link>
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col">
+            <label className="text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">Ano</label>
+            <select 
+              value={selectedYear} 
+              onChange={e => setSelectedYear(e.target.value)}
+              className="px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-700 min-w-[120px]"
+            >
+              <option value="">Todos</option>
+              {availableYears.map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          </div>
+          <Link 
+            href="/importar" 
+            className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm self-end"
+          >
+            Nova Importação
+          </Link>
+        </div>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Total de Servidores</p>
-            <p className="text-3xl font-bold text-slate-900">{isLoading ? '-' : totalServers}</p>
+            <p className="text-sm font-medium text-slate-500 mb-1">Total Recebido no Ano</p>
+            <p className="text-2xl font-bold text-emerald-600">{isLoading ? '-' : formatCurrency(totalRecebidoAno)}</p>
           </div>
-          <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
-            <Users className="w-5 h-5" />
+          <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center shrink-0 ml-3">
+            <DollarSign className="w-5 h-5" />
           </div>
         </div>
         
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Pendentes de Cadastro</p>
-            <p className="text-3xl font-bold text-amber-600">{isLoading ? '-' : pendingServers}</p>
+            <p className="text-sm font-medium text-slate-500 mb-1">Fundo Financeiro</p>
+            <p className="text-2xl font-bold text-indigo-600">{isLoading ? '-' : formatCurrency(totalFFAno)}</p>
           </div>
-          <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center">
-            <AlertCircle className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
-          <div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Servidores Ativos</p>
-            <p className="text-3xl font-bold text-emerald-600">{isLoading ? '-' : activeServers}</p>
-          </div>
-          <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
-            <CheckCircle className="w-5 h-5" />
+          <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0 ml-3">
+            <Landmark className="w-5 h-5" />
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Total de Relatórios</p>
-            <p className="text-3xl font-bold text-indigo-600">{isLoading ? '-' : imports.length}</p>
+            <p className="text-sm font-medium text-slate-500 mb-1">Fundo Previdenciário</p>
+            <p className="text-2xl font-bold text-sky-600">{isLoading ? '-' : formatCurrency(totalFPAno)}</p>
           </div>
-          <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 bg-sky-50 text-sky-600 rounded-lg flex items-center justify-center shrink-0 ml-3">
+            <PiggyBank className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-500 mb-1">Relatórios no Ano</p>
+            <p className="text-2xl font-bold text-slate-900">{isLoading ? '-' : filteredImports.length}</p>
+          </div>
+          <div className="w-10 h-10 bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center shrink-0 ml-3">
             <FileBox className="w-5 h-5" />
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Chart */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        {/* Chart / Table Toggle Section */}
+        <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-blue-500" />
-              Evolução das Reconciliações
+              Evolução das Reconciliações {selectedYear && `(${selectedYear})`}
             </h3>
+            <div className="flex items-center bg-slate-100 p-1 rounded-lg">
+              <button 
+                onClick={() => setViewMode('chart')}
+                className={`p-1.5 rounded-md flex items-center justify-center transition-colors ${viewMode === 'chart' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                title="Gráfico"
+              >
+                <BarChart2 className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => setViewMode('table')}
+                className={`p-1.5 rounded-md flex items-center justify-center transition-colors ${viewMode === 'table' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                title="Tabela"
+              >
+                <TableIcon className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           
           {isLoading ? (
-            <div className="h-72 w-full flex items-center justify-center">
+            <div className="flex-1 min-h-[18rem] w-full flex items-center justify-center">
               <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
             </div>
           ) : chartData.length > 0 ? (
-            <div className="h-72 w-full">
-              <DashboardChart data={chartData} />
+            <div className="flex-1 min-h-[18rem] w-full">
+              {viewMode === 'chart' ? (
+                <DashboardChart data={chartData} />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm text-slate-600">
+                    <thead className="bg-slate-50 text-slate-700 uppercase font-semibold">
+                      <tr>
+                        <th className="px-4 py-3 rounded-tl-lg">Competência</th>
+                        <th className="px-4 py-3 text-right">Esperado</th>
+                        <th className="px-4 py-3 text-right">Recebido</th>
+                        <th className="px-4 py-3 text-right rounded-tr-lg">Diferença</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {sortedImports.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50">
+                          <td className="px-4 py-3 font-medium text-slate-900">{item.competencia}</td>
+                          <td className="px-4 py-3 text-right">{formatCurrency(item.expectedTotal)}</td>
+                          <td className="px-4 py-3 text-right font-medium text-emerald-600">{formatCurrency(item.receivedTotal)}</td>
+                          <td className="px-4 py-3 text-right">
+                            {item.expectedTotal - item.receivedTotal > 0.01 ? (
+                              <span className="text-amber-600 font-medium">-{formatCurrency(item.expectedTotal - item.receivedTotal)}</span>
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           ) : (
-            <div className="h-72 w-full flex flex-col items-center justify-center text-slate-400">
+            <div className="flex-1 min-h-[18rem] w-full flex flex-col items-center justify-center text-slate-400">
               <FileText className="w-12 h-12 mb-3 text-slate-300" />
-              <p>Nenhum dado importado ainda.</p>
+              <p>Nenhum dado importado para o período.</p>
             </div>
           )}
         </div>

@@ -168,6 +168,8 @@ export interface ImportSummary {
   competencia: string;
   expectedTotal: number;
   receivedTotal: number;
+  totalFF: number;
+  totalFP: number;
 }
 
 export async function fetchImportsFromSheet(token: string, spreadsheetId: string): Promise<ImportSummary[]> {
@@ -202,8 +204,20 @@ export async function fetchImportsFromSheet(token: string, spreadsheetId: string
         importDate: parseSheetDate(row[1]),
         competencia: parseCompetencia(row[2]),
         expectedTotal: parseNumber(row[4]),
-        receivedTotal: parseNumber(row[5])
+        receivedTotal: parseNumber(row[5]),
+        totalFF: 0,
+        totalFP: 0
       });
+    }
+
+    const summary = importsMap.get(importId)!;
+    const fund = row[11];
+    const value = parseNumber(row[12]);
+
+    if (fund === 'FUNDO_FINANCEIRO' || fund === 'FF') {
+      summary.totalFF += value;
+    } else if (fund === 'FUNDO_PREVIDENCIARIO' || fund === 'FP') {
+      summary.totalFP += value;
     }
   }
   

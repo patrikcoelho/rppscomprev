@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useStore, Server } from '@/lib/store';
-import { Plus, Search, Edit2, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, Search, Edit2, CheckCircle, AlertCircle, RefreshCw, Users } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '@/components/AuthProvider';
 import { fetchServersFromSheet, appendServerToSheet, batchAppendServersToSheet, updateServerInSheet } from '@/lib/sheets';
@@ -56,6 +56,10 @@ export default function ServidoresPage() {
   }, [spreadsheetId, token]);
 
   const displayServers = sheetServers;
+
+  const totalServers = displayServers.length;
+  const pendingServers = displayServers.filter(s => s.status === 'PENDING').length;
+  const activeServers = displayServers.filter(s => s.status === 'APPROVED').length;
 
   const filteredServers = displayServers.filter(s => 
     s.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
@@ -149,6 +153,39 @@ export default function ServidoresPage() {
             <Plus className="w-4 h-4" />
             Novo Servidor
           </button>
+        </div>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-500 mb-1">Total de Servidores</p>
+            <p className="text-3xl font-bold text-slate-900">{isLoading ? '-' : totalServers}</p>
+          </div>
+          <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
+            <Users className="w-5 h-5" />
+          </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-500 mb-1">Pendentes de Cadastro</p>
+            <p className="text-3xl font-bold text-amber-600">{isLoading ? '-' : pendingServers}</p>
+          </div>
+          <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center">
+            <AlertCircle className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-500 mb-1">Servidores Ativos</p>
+            <p className="text-3xl font-bold text-emerald-600">{isLoading ? '-' : activeServers}</p>
+          </div>
+          <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
+            <CheckCircle className="w-5 h-5" />
+          </div>
         </div>
       </div>
 
