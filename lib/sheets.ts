@@ -301,17 +301,69 @@ export async function fetchImportDetailsFromSheet(token: string, spreadsheetId: 
   return found ? details : null;
 }
 
+export async function createAcessosTab(token: string, spreadsheetId: string): Promise<boolean> {
+  const batchUpdateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`;
+  const addSheetBody = {
+    requests: [{ addSheet: { properties: { title: 'Acessos' } } }]
+  };
+  
+  try {
+    const res1 = await fetch(batchUpdateUrl, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(addSheetBody)
+    });
+    
+    if (!res1.ok) {
+      console.error('Failed to create Acessos tab', await res1.text());
+      return false;
+    }
+    
+    const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Acessos!A1:A2?valueInputOption=USER_ENTERED`;
+    const updateBody = {
+      values: [
+        ['patrik.oliveira@iper.rr.gov.br'],
+        ['petrycmusic@gmail.com']
+      ]
+    };
+    
+    const res2 = await fetch(updateUrl, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateBody)
+    });
+    
+    return res2.ok;
+  } catch (err) {
+    console.error('Error creating Acessos tab:', err);
+    return false;
+  }
+}
+
 export async function verifyUserAccess(token: string, spreadsheetId: string, email: string): Promise<boolean> {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Acessos!A:A`;
   try {
-    const res = await fetch(url, {
+    let res = await fetch(url, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
     if (!res.ok) {
       if (res.status === 401) throw new Error('TOKEN_EXPIRED');
-      console.error('Acesso negado à planilha ou aba Acessos não encontrada', await res.text());
-      return false;
+      
+      const errorText = await res.text();
+      if (res.status === 400 && errorText.includes('Unable to parse range')) {
+        console.log('Aba Acessos não encontrada. Criando automaticamente...');
+        const created = await createAcessosTab(token, spreadsheetId);
+        if (created) {
+          res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+          if (!res.ok) return false;
+        } else {
+          return false;
+        }
+      } else {
+        console.error('Acesso negado à planilha ou aba Acessos', errorText);
+        return false;
+      }
     }
     
     const data = await res.json();
