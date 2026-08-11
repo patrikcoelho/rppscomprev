@@ -99,7 +99,7 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-slate-900">Visão Geral</h1>
           <p className="text-slate-500">Acompanhamento de reconciliação bancária do Comprev.</p>
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-4 w-full sm:w-auto">
           <div className="flex flex-col w-full sm:w-auto">
             <label className="text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">Ano</label>
             <select 
