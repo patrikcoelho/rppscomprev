@@ -115,7 +115,7 @@ export default function Dashboard() {
           </div>
           <Link 
             href="/importar" 
-            className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm w-full sm:w-auto text-center self-end"
+            className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm w-full sm:w-auto text-center whitespace-nowrap"
           >
             Nova Importação
           </Link>
