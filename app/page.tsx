@@ -94,18 +94,18 @@ export default function Dashboard() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto w-full">
-      <div className="mb-8 flex justify-between items-end">
+      <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Visão Geral</h1>
           <p className="text-slate-500">Acompanhamento de reconciliação bancária do Comprev.</p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
+          <div className="flex flex-col w-full sm:w-auto">
             <label className="text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">Ano</label>
             <select 
               value={selectedYear} 
               onChange={e => setSelectedYear(e.target.value)}
-              className="px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-700 min-w-[120px]"
+              className="px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-700 w-full sm:min-w-[120px]"
             >
               <option value="">Todos</option>
               {availableYears.map(year => (
@@ -115,7 +115,7 @@ export default function Dashboard() {
           </div>
           <Link 
             href="/importar" 
-            className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm self-end"
+            className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm w-full sm:w-auto text-center self-end"
           >
             Nova Importação
           </Link>
@@ -123,11 +123,11 @@ export default function Dashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-slate-500 mb-1 leading-tight">Total Recebido no Ano</p>
-            <p className="text-[clamp(1rem,1.5vw,1.5rem)] font-bold text-emerald-600 whitespace-nowrap">{isLoading ? '-' : formatCurrency(totalRecebidoAno)}</p>
+            <p className="text-[clamp(0.75rem,1.5vw,1.5rem)] font-bold text-emerald-600 whitespace-nowrap">{isLoading ? '-' : formatCurrency(totalRecebidoAno)}</p>
           </div>
           <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center shrink-0 ml-3">
             <DollarSign className="w-5 h-5" />
@@ -137,7 +137,7 @@ export default function Dashboard() {
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-slate-500 mb-1 leading-tight">Fundo Financeiro</p>
-            <p className="text-[clamp(1rem,1.5vw,1.5rem)] font-bold text-indigo-600 whitespace-nowrap">{isLoading ? '-' : formatCurrency(totalFFAno)}</p>
+            <p className="text-[clamp(0.75rem,1.5vw,1.5rem)] font-bold text-indigo-600 whitespace-nowrap">{isLoading ? '-' : formatCurrency(totalFFAno)}</p>
           </div>
           <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0 ml-3">
             <Landmark className="w-5 h-5" />
@@ -147,7 +147,7 @@ export default function Dashboard() {
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-slate-500 mb-1 leading-tight">Fundo Previdenciário</p>
-            <p className="text-[clamp(1rem,1.5vw,1.5rem)] font-bold text-sky-600 whitespace-nowrap">{isLoading ? '-' : formatCurrency(totalFPAno)}</p>
+            <p className="text-[clamp(0.75rem,1.5vw,1.5rem)] font-bold text-sky-600 whitespace-nowrap">{isLoading ? '-' : formatCurrency(totalFPAno)}</p>
           </div>
           <div className="w-10 h-10 bg-sky-50 text-sky-600 rounded-lg flex items-center justify-center shrink-0 ml-3">
             <PiggyBank className="w-5 h-5" />
@@ -157,7 +157,7 @@ export default function Dashboard() {
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-slate-500 mb-1 leading-tight">Relatórios no Ano</p>
-            <p className="text-[clamp(1rem,1.5vw,1.5rem)] font-bold text-slate-900 whitespace-nowrap">{isLoading ? '-' : filteredImports.length}</p>
+            <p className="text-[clamp(0.75rem,1.5vw,1.5rem)] font-bold text-slate-900 whitespace-nowrap">{isLoading ? '-' : filteredImports.length}</p>
           </div>
           <div className="w-10 h-10 bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center shrink-0 ml-3">
             <FileBox className="w-5 h-5" />
@@ -165,9 +165,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="flex flex-col xl:flex-row gap-8">
         {/* Chart / Table Toggle Section */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+        <div className="flex-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col min-w-0">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-blue-500" />
@@ -241,7 +241,7 @@ export default function Dashboard() {
         </div>
 
         {/* Latest Report */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col lg:min-w-[320px] xl:min-w-[360px]">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col w-full xl:w-[380px] shrink-0">
           <div className="p-6 border-b border-slate-100">
             <h3 className="font-bold text-slate-900 text-lg">Última Reconciliação</h3>
           </div>
@@ -262,14 +262,14 @@ export default function Dashboard() {
                 </p>
               </div>
               
-              <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-4 mb-6">
                 <div className="bg-slate-50 p-4 rounded-lg min-w-0">
                   <p className="text-xs font-medium text-slate-500 mb-1 leading-tight">Total Esperado</p>
-                  <p className="font-bold text-slate-900 text-[clamp(0.9rem,1.2vw,1.125rem)] whitespace-nowrap">{formatCurrency(lastReport.expectedTotal)}</p>
+                  <p className="font-bold text-slate-900 text-[clamp(0.75rem,1.2vw,1.125rem)] whitespace-nowrap">{formatCurrency(lastReport.expectedTotal)}</p>
                 </div>
                 <div className="bg-emerald-50 p-4 rounded-lg min-w-0">
                   <p className="text-xs font-medium text-emerald-800 mb-1 leading-tight">Valor Recebido</p>
-                  <p className="font-bold text-emerald-700 text-[clamp(0.9rem,1.2vw,1.125rem)] whitespace-nowrap">{formatCurrency(lastReport.receivedTotal)}</p>
+                  <p className="font-bold text-emerald-700 text-[clamp(0.75rem,1.2vw,1.125rem)] whitespace-nowrap">{formatCurrency(lastReport.receivedTotal)}</p>
                 </div>
               </div>
 
