@@ -241,7 +241,7 @@ export default function Dashboard() {
         </div>
 
         {/* Latest Report */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col lg:min-w-[320px] xl:min-w-[360px]">
           <div className="p-6 border-b border-slate-100">
             <h3 className="font-bold text-slate-900 text-lg">Última Reconciliação</h3>
           </div>
@@ -263,13 +263,13 @@ export default function Dashboard() {
               </div>
               
               <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-slate-50 p-4 rounded-lg">
-                  <p className="text-xs font-medium text-slate-500 mb-1">Total Esperado</p>
-                  <p className="font-bold text-slate-900">{formatCurrency(lastReport.expectedTotal)}</p>
+                <div className="bg-slate-50 p-4 rounded-lg min-w-0">
+                  <p className="text-xs font-medium text-slate-500 mb-1 leading-tight">Total Esperado</p>
+                  <p className="font-bold text-slate-900 text-[clamp(0.9rem,1.2vw,1.125rem)] whitespace-nowrap">{formatCurrency(lastReport.expectedTotal)}</p>
                 </div>
-                <div className="bg-emerald-50 p-4 rounded-lg">
-                  <p className="text-xs font-medium text-emerald-800 mb-1">Valor Recebido</p>
-                  <p className="font-bold text-emerald-700">{formatCurrency(lastReport.receivedTotal)}</p>
+                <div className="bg-emerald-50 p-4 rounded-lg min-w-0">
+                  <p className="text-xs font-medium text-emerald-800 mb-1 leading-tight">Valor Recebido</p>
+                  <p className="font-bold text-emerald-700 text-[clamp(0.9rem,1.2vw,1.125rem)] whitespace-nowrap">{formatCurrency(lastReport.receivedTotal)}</p>
                 </div>
               </div>
 
