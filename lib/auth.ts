@@ -10,7 +10,7 @@ provider.addScope('https://www.googleapis.com/auth/spreadsheets');
 provider.addScope('https://www.googleapis.com/auth/drive.file');
 
 let isSigningIn = false;
-let cachedAccessToken: string | null = typeof window !== 'undefined' ? sessionStorage.getItem('google_access_token') : null;
+let cachedAccessToken: string | null = typeof window !== 'undefined' ? localStorage.getItem('google_access_token') : null;
 
 export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
@@ -34,9 +34,6 @@ export const initAuth = (
 export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {
   try {
     isSigningIn = true;
-    provider.setCustomParameters({
-      prompt: 'consent'
-    });
     const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (!credential?.accessToken) {
@@ -45,7 +42,7 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
 
     cachedAccessToken = credential.accessToken;
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem('google_access_token', cachedAccessToken);
+      localStorage.setItem('google_access_token', cachedAccessToken);
     }
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
@@ -64,6 +61,6 @@ export const logout = async () => {
   await signOut(auth);
   cachedAccessToken = null;
   if (typeof window !== 'undefined') {
-    sessionStorage.removeItem('google_access_token');
+    localStorage.removeItem('google_access_token');
   }
 };

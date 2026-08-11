@@ -300,3 +300,28 @@ export async function fetchImportDetailsFromSheet(token: string, spreadsheetId: 
   
   return found ? details : null;
 }
+
+export async function verifyUserAccess(token: string, spreadsheetId: string, email: string): Promise<boolean> {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Acessos!A:A`;
+  try {
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!res.ok) {
+      if (res.status === 401) throw new Error('TOKEN_EXPIRED');
+      console.error('Acesso negado à planilha ou aba Acessos não encontrada', await res.text());
+      return false;
+    }
+    
+    const data = await res.json();
+    const rows = data.values || [];
+    const allowedEmails = rows.map((r: any[]) => r[0]?.toString().toLowerCase().trim()).filter(Boolean);
+    
+    return allowedEmails.includes(email.toLowerCase().trim());
+  } catch (err: any) {
+    if (err.message === 'TOKEN_EXPIRED') throw err;
+    console.error('Error verifying user access:', err);
+    return false;
+  }
+}
