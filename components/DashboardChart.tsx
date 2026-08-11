@@ -19,7 +19,7 @@ export default function DashboardChart({ data }: ChartProps) {
   const yAxisTicks = [maxVal, maxVal * 0.75, maxVal * 0.5, maxVal * 0.25, 0];
 
   return (
-    <div className="w-full h-full flex flex-col pt-4">
+    <div className="w-full h-full min-h-[300px] sm:min-h-[350px] flex flex-col pt-4">
       <div className="flex-1 flex relative">
         {/* Y Axis */}
         <div className="w-16 flex flex-col justify-between text-[10px] text-slate-400 pr-2 pb-6 border-r border-slate-100">
