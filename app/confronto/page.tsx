@@ -31,7 +31,7 @@ const STATUS_OPTIONS = [
 ];
 
 const STATUS_STYLES: Record<string, string> = {
-  'Não Realizado': 'bg-red-50 text-red-700 border-red-200',
+  'Não Realizado': 'bg-slate-100 text-slate-700 border-slate-300',
   'Em Análise': 'bg-sky-50 text-sky-700 border-sky-200',
   'Requerimento Enviado': 'bg-violet-50 text-violet-700 border-violet-200',
   'Aguardando Documentação': 'bg-amber-50 text-amber-800 border-amber-200',
