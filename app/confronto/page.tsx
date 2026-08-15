@@ -140,7 +140,9 @@ export default function ConfrontoPage() {
         const averbacoesMap = new Map<string, RowData>();
         averbacoes.forEach(row => {
           const cpfKey = getCpf(row);
-          if (cpfKey) {
+          const totalDiasRaw = getFirstRowValue(row, ['TOTAL_DIAS', 'Total_Dias', 'Total Dias', 'total_dias']);
+          const totalDias = Number(String(totalDiasRaw).replace(',', '.').trim() || '0');
+          if (cpfKey && !Number.isNaN(totalDias) && totalDias !== 0) {
             averbacoesMap.set(cpfKey, row);
           }
         });
