@@ -47,9 +47,10 @@ export default function ConfrontoPage() {
       setError(null);
       
       try {
-        const [censo, aposentadorias, averbacoes, listaComprev, confrontoSheet] = await Promise.all([
+        const [censo, aposentadorias, pensionistas, averbacoes, listaComprev, confrontoSheet] = await Promise.all([
           fetchSheetData(token, spreadsheetId, 'Censo'),
           fetchSheetData(token, spreadsheetId, 'Aposentadorias'),
+          fetchSheetData(token, spreadsheetId, 'Pensionistas'),
           fetchSheetData(token, spreadsheetId, 'Averbacoes'),
           fetchSheetData(token, spreadsheetId, 'Lista_comprev'),
           fetchSheetData(token, spreadsheetId, 'Confronto')
@@ -159,9 +160,25 @@ export default function ConfrontoPage() {
           return map;
         };
 
+        const buildPensionistasMap = (rows: RowData[]) => {
+          const map = new Map<string, { name: string; dataInicioBeneficio: string }>();
+          rows.forEach(row => {
+            const cpf = getCpf(row);
+            const name = getName(row);
+            if (cpf) {
+              map.set(cpf, {
+                name,
+                dataInicioBeneficio: getDataIniBeneficio(row)
+              });
+            }
+          });
+          return map;
+        };
+
         // 1. Mapas auxiliares para cruzamento e enriquecimento de dados
         const censoMap = buildNameMap(censo);
         const aposentadoriasMap = buildAposentadoriasMap(aposentadorias);
+        const pensionistasMap = buildPensionistasMap(pensionistas);
 
         // 2. Averbações são a base principal do confronto
         const averbacoesMap = new Map<string, RowData>();
@@ -209,8 +226,9 @@ export default function ConfrontoPage() {
           }
 
           const aposentadoriaInfo = aposentadoriasMap.get(cpf);
-          const name = getName(row) || (listaItem?.row ? getName(listaItem.row) : '') || aposentadoriaInfo?.name || censoMap.get(cpf) || 'Desconhecido';
-          const dataInicioBeneficio = aposentadoriaInfo?.dataInicioBeneficio || '';
+          const pensionistaInfo = pensionistasMap.get(cpf);
+          const name = getName(row) || (listaItem?.row ? getName(listaItem.row) : '') || aposentadoriaInfo?.name || pensionistaInfo?.name || censoMap.get(cpf) || 'Desconhecido';
+          const dataInicioBeneficio = aposentadoriaInfo?.dataInicioBeneficio || pensionistaInfo?.dataInicioBeneficio || '';
           const displayCpf = formatCpfForDisplay(getCpfRaw(row) || cpf);
           const listaStatus = listaItem?.status || 'Não Realizado';
           const status = confrontoStatusMap.get(cpf) || confrontoStatusMap.get(displayCpf) || listaStatus;
