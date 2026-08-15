@@ -26,6 +26,7 @@ const STATUS_OPTIONS = [
   'Concluído',
   'Fora do prazo',
   'Não se aplica',
+  'Militar',
   'Sem cadastro Sisprev',
   'Localizar processo de averbação'
 ];
@@ -38,6 +39,7 @@ const STATUS_STYLES: Record<string, string> = {
   'Concluído': 'bg-emerald-50 text-emerald-700 border-emerald-200',
   'Fora do prazo': 'bg-orange-50 text-orange-700 border-orange-200',
   'Não se aplica': 'bg-slate-100 text-slate-700 border-slate-300',
+  'Militar': 'bg-green-100 text-green-800 border-green-300',
   'Sem cadastro Sisprev': 'bg-rose-50 text-rose-700 border-rose-200',
   'Localizar processo de averbação': 'bg-indigo-50 text-indigo-700 border-indigo-200'
 };
