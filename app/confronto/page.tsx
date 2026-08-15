@@ -219,60 +219,69 @@ export default function ConfrontoPage() {
           }
         });
 
-        const confrontoStatusMap = new Map<string, string>();
+        const existingConfrontoMap = new Map<string, ConfrontoItem>();
         confrontoSheet.forEach(row => {
-          const cpfKey = getCpf(row);
-          const status = String(getFirstRowValue(row, ['Status Confronto', 'Status', 'status'])).trim();
-          if (cpfKey) {
-            if (status) {
-              confrontoStatusMap.set(cpfKey, status);
-            }
-          }
+          const cpf = getCpf(row);
+          if (!cpf) return;
+
+          const existingItem: ConfrontoItem = {
+            cpf: formatCpfForDisplay(getCpfRaw(row) || cpf),
+            name: String(getFirstRowValue(row, ['Nome', 'NOME'])).trim() || 'Desconhecido',
+            dataInicioBeneficio: String(getFirstRowValue(row, ['Data Início Benefício', 'Data Início Beneficio', 'Data Inicio Beneficio', 'Data Inicio Benefício'])).trim(),
+            origem: String(getFirstRowValue(row, ['Origem'])).trim() || 'Averbacoes',
+            status: String(getFirstRowValue(row, ['Status Confronto', 'Status', 'status'])).trim() || 'Não Realizado',
+            listaStatus: String(getFirstRowValue(row, ['Status Lista Comprev', 'Lista Status', 'Status Lista'])).trim() || ''
+          };
+
+          existingConfrontoMap.set(cpf, existingItem);
         });
 
-        // CRUZAMENTO PRINCIPAL: Averbações + status da Lista Comprev quando existir
+        // CRUZAMENTO PRINCIPAL: conserva o que já está salvo e enriquece com a base atual
         const resultadosMap = new Map<string, ConfrontoItem>();
-        
+
+        existingConfrontoMap.forEach((item, cpf) => {
+          resultadosMap.set(cpf, item);
+        });
+
         averbacoesMap.forEach((row, cpf) => {
           const listaItem = listaComprevMap.get(cpf);
-          if (listaItem) {
-            return;
-          }
+          if (listaItem) return;
 
           const aposentadoriaInfo = aposentadoriasMap.get(cpf);
           const pensionistaInfo = pensionistasMap.get(cpf);
-          const name = getName(row) || (listaItem?.row ? getName(listaItem.row) : '') || aposentadoriaInfo?.name || pensionistaInfo?.name || censoMap.get(cpf) || 'Desconhecido';
+          const name = getName(row) || aposentadoriaInfo?.name || pensionistaInfo?.name || censoMap.get(cpf) || 'Desconhecido';
           const dataInicioBeneficio = aposentadoriaInfo?.dataInicioBeneficio || pensionistaInfo?.dataInicioBeneficio || '';
           const displayCpf = formatCpfForDisplay(getCpfRaw(row) || cpf);
           const listaStatus = listaItem?.status || 'Não Realizado';
-          const status = confrontoStatusMap.get(cpf) || confrontoStatusMap.get(displayCpf) || listaStatus;
+          const existingItem = resultadosMap.get(cpf);
 
-          const current = resultadosMap.get(displayCpf);
           const nextItem: ConfrontoItem = {
             cpf: displayCpf,
             name,
             dataInicioBeneficio,
             origem: 'Averbacoes',
-            status,
+            status: existingItem?.status || listaStatus,
             listaStatus
           };
 
-          if (!current) {
-            resultadosMap.set(displayCpf, nextItem);
+          if (!existingItem) {
+            resultadosMap.set(cpf, nextItem);
             return;
           }
 
-          resultadosMap.set(displayCpf, {
-            ...current,
-            name: current.name && current.name !== 'Desconhecido' ? current.name : nextItem.name,
-            dataInicioBeneficio: current.dataInicioBeneficio || nextItem.dataInicioBeneficio,
-            status: current.status && current.status !== 'Não Realizado' ? current.status : nextItem.status,
-            listaStatus: current.listaStatus || nextItem.listaStatus
+          resultadosMap.set(cpf, {
+            ...existingItem,
+            cpf: displayCpf,
+            name: existingItem.name && existingItem.name !== 'Desconhecido' ? existingItem.name : nextItem.name,
+            dataInicioBeneficio: existingItem.dataInicioBeneficio || nextItem.dataInicioBeneficio,
+            origem: existingItem.origem || nextItem.origem,
+            status: existingItem.status || nextItem.status,
+            listaStatus: existingItem.listaStatus || nextItem.listaStatus
           });
         });
 
         const resultados = Array.from(resultadosMap.values());
-        
+
         setItems(resultados);
         void writeConfrontoResultsToSheet(
           token,
