@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { useAuth } from '@/components/AuthProvider';
 import { fetchSheetData, parseSheetDate, writeConfrontoResultsToSheet } from '@/lib/sheets';
@@ -52,6 +52,8 @@ export default function ConfrontoPage() {
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<ConfrontoItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedYear, setSelectedYear] = useState('Todos');
+  const [selectedStatus, setSelectedStatus] = useState('Todos');
 
   useEffect(() => {
     async function loadData() {
@@ -311,7 +313,7 @@ export default function ConfrontoPage() {
 
   const handleStatusChange = (cpf: string, newStatus: string) => {
     setConfrontoStatus(cpf, newStatus);
-        const nextItems = items.map(item => (
+    const nextItems = items.map(item => (
       item.cpf === cpf ? { ...item, status: newStatus } : item
     ));
     setItems(nextItems);
@@ -336,14 +338,54 @@ export default function ConfrontoPage() {
     }
   };
 
-  const filteredItems = items.filter(item => 
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    item.cpf.includes(searchTerm)
-  );
-
   const formatCpf = (cpf: string) => {
     return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
   };
+
+  const getYearFromDataInicioBeneficio = (value: string) => {
+    const match = value.match(/(\d{4})(?!.*\d{4})/);
+    return match?.[1] || '';
+  };
+
+  const yearOptions = useMemo(() => {
+    const years = Array.from(
+      new Set(
+        items
+          .map((item) => getYearFromDataInicioBeneficio(item.dataInicioBeneficio))
+          .filter(Boolean)
+      )
+    ).sort((a, b) => Number(b) - Number(a));
+
+    return ['Todos', ...years];
+  }, [items]);
+
+  const statusFilterOptions = useMemo(() => {
+    const statuses = Array.from(
+      new Set([
+        ...STATUS_OPTIONS,
+        ...items.map((item) => item.status).filter(Boolean)
+      ])
+    );
+
+    return ['Todos', ...statuses];
+  }, [items]);
+
+  const filteredItems = useMemo(() => {
+    const normalizedSearch = searchTerm.toLowerCase().trim();
+
+    return items.filter((item) => {
+      const matchesSearch =
+        !normalizedSearch ||
+        item.name.toLowerCase().includes(normalizedSearch) ||
+        item.cpf.includes(normalizedSearch);
+
+      const itemYear = getYearFromDataInicioBeneficio(item.dataInicioBeneficio);
+      const matchesYear = selectedYear === 'Todos' || itemYear === selectedYear;
+      const matchesStatus = selectedStatus === 'Todos' || item.status === selectedStatus;
+
+      return matchesSearch && matchesYear && matchesStatus;
+    });
+  }, [items, searchTerm, selectedYear, selectedStatus]);
 
   if (!token) {
     return <div className="p-8 text-center text-slate-500">Faça login para acessar o confronto.</div>;
@@ -415,17 +457,44 @@ export default function ConfrontoPage() {
           </div>
 
           <div className="bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
-            <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-              <h2 className="font-semibold text-slate-800">Resultado do Cruzamento</h2>
-              <div className="relative w-64">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Buscar por nome ou CPF..."
-                  className="w-full pl-9 pr-3 py-1.5 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+            <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <h2 className="font-semibold text-slate-800">Resultado do Cruzamento</h2>
+                <p className="text-xs text-slate-500 mt-1">Filtre por nome, CPF, ano de início do benefício e situação.</p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Buscar por nome ou CPF..."
+                    className="w-full pl-9 pr-3 py-1.5 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  className="w-full sm:w-40 px-3 py-1.5 text-sm border border-slate-300 rounded-md bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {yearOptions.map((year) => (
+                    <option key={year} value={year}>
+                      {year === 'Todos' ? 'Todos os anos' : year}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="w-full sm:w-56 px-3 py-1.5 text-sm border border-slate-300 rounded-md bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {statusFilterOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {status === 'Todos' ? 'Todas as situações' : status}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             
