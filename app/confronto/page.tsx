@@ -51,53 +51,61 @@ export default function ConfrontoPage() {
         const cleanCpf = (str: any) => (str ? String(str).replace(/[^\d]/g, '') : '');
         // Adiciona as possibilidades de coluna com base nas respostas e arquivos
         const getCpf = (row: RowData) => cleanCpf(row['CPF'] || row['CPF Beneficiário'] || row['CPF_INSTITUIDOR'] || row['CPF_BENEFICIARIO'] || '');
-        const getName = (row: RowData) => String(row['NOME_BENEFICIARIO'] || row['Nome Beneficiário'] || row['NOME'] || row['NOME_INSTITUIDOR'] || row['Nome'] || 'Desconhecido');
+        const getName = (row: RowData) => String(
+          row['NOME_BENEFICIARIO'] ||
+          row['Nome Beneficiário'] ||
+          row['NOME_INSTITUIDOR'] ||
+          row['NOME'] ||
+          row['Nome'] ||
+          ''
+        ).trim();
 
-        const inativosMap = new Map<string, string>(); // CPF -> Name
-        
-        // 1. Inativos do Censo (Tudo que não é EFETIVO)
-        censo.forEach(row => {
-          const cat = String(row['CATEGORIA_INSTITUIDOR'] || row['CATEGORIA'] || '').toUpperCase();
-          const cpf = getCpf(row);
-          if (cpf && cat && cat !== 'EFETIVO') {
-            inativosMap.set(cpf, getName(row));
-          }
-        });
+        const buildNameMap = (rows: RowData[]) => {
+          const map = new Map<string, string>();
+          rows.forEach(row => {
+            const cpf = getCpf(row);
+            const name = getName(row);
+            if (cpf && name) {
+              map.set(cpf, name);
+            }
+          });
+          return map;
+        };
 
-        // 2. Aposentadorias (Todos são inativos)
-        aposentadorias.forEach(row => {
-          const cpf = getCpf(row);
-          if (cpf) {
-            inativosMap.set(cpf, getName(row));
-          }
-        });
+        // 1. Mapas auxiliares para cruzamento e enriquecimento de dados
+        const censoMap = buildNameMap(censo);
+        const aposentadoriasMap = buildNameMap(aposentadorias);
 
-        // 3. Averbações
-        const averbadosSet = new Set<string>();
+        // 2. Averbações são a base principal do confronto
+        const averbacoesMap = new Map<string, RowData>();
         averbacoes.forEach(row => {
           const cpf = getCpf(row);
-          if (cpf) averbadosSet.add(cpf);
+          if (cpf) {
+            averbacoesMap.set(cpf, row);
+          }
         });
 
-        // 4. Lista Comprev (Requerimentos já feitos)
+        // 3. Lista Comprev (Requerimentos já feitos)
         const requeridosSet = new Set<string>();
         listaComprev.forEach(row => {
           const cpf = getCpf(row);
           if (cpf) requeridosSet.add(cpf);
         });
 
-        // CRUZAMENTO PRINCIPAL: Inativos + Com Averbação + SEM Requerimento
+        // CRUZAMENTO PRINCIPAL: Averbações + SEM Requerimento
         const resultados: ConfrontoItem[] = [];
         
-        inativosMap.forEach((name, cpf) => {
-          if (averbadosSet.has(cpf) && !requeridosSet.has(cpf)) {
-            resultados.push({
-              cpf,
-              name,
-              origem: 'Censo/Aposentadorias',
-              status: confrontoData[cpf] || 'Não Realizado'
-            });
-          }
+        averbacoesMap.forEach((row, cpf) => {
+          if (requeridosSet.has(cpf)) return;
+
+          const name = getName(row) || aposentadoriasMap.get(cpf) || censoMap.get(cpf) || 'Desconhecido';
+
+          resultados.push({
+            cpf,
+            name,
+            origem: 'Averbacoes',
+            status: confrontoData[cpf] || 'Não Realizado'
+          });
         });
         
         setItems(resultados);
@@ -141,7 +149,7 @@ export default function ConfrontoPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">Confronto Comprev</h1>
-          <p className="text-slate-500">Identifique servidores inativos com averbação pendentes de requerimento.</p>
+          <p className="text-slate-500">Identifique aposentados com averbação pendentes de requerimento.</p>
         </div>
       </div>
 
@@ -233,7 +241,7 @@ export default function ConfrontoPage() {
                       <tr key={item.cpf} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4">
                           <p className="font-medium text-slate-900">{item.name}</p>
-                          <p className="text-xs text-slate-500">Inativo identificado via {item.origem}</p>
+                          <p className="text-xs text-slate-500">Registro base identificado via {item.origem}</p>
                         </td>
                         <td className="px-6 py-4 text-slate-600 font-mono">
                           {formatCpf(item.cpf)}
