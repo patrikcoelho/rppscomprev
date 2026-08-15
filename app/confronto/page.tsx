@@ -211,7 +211,7 @@ export default function ConfrontoPage() {
         const resultados = Array.from(resultadosMap.values());
         
         setItems(resultados);
-        await writeConfrontoResultsToSheet(
+        void writeConfrontoResultsToSheet(
           token,
           spreadsheetId,
           resultados.map(item => ({
@@ -222,7 +222,9 @@ export default function ConfrontoPage() {
             statusListaComprev: item.listaStatus || '',
             updatedAt: new Date().toISOString()
           }))
-        );
+        ).catch((writeErr) => {
+          console.error(writeErr);
+        });
       } catch (err) {
         console.error(err);
         setError('Ocorreu um erro ao buscar os dados da planilha. Verifique as permissões e se as abas existem.');
