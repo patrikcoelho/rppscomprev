@@ -175,6 +175,10 @@ export default function ConfrontoPage() {
         
         averbacoesMap.forEach((row, cpf) => {
           const listaItem = listaComprevMap.get(cpf);
+          if (listaItem) {
+            return;
+          }
+
           const name = getName(row) || (listaItem?.row ? getName(listaItem.row) : '') || aposentadoriasMap.get(cpf) || censoMap.get(cpf) || 'Desconhecido';
           const displayCpf = formatCpfForDisplay(getCpfRaw(row) || cpf);
           const listaStatus = listaItem?.status || 'Não Realizado';
