@@ -54,12 +54,39 @@ export default function ConfrontoPage() {
         const normalizeCpfForMatch = (str: any) => {
           const digits = cleanCpf(str);
           const trimmed = digits.replace(/^0+/, '');
-          return trimmed || '0';
+          return trimmed || digits || '0';
         };
         const formatCpfForDisplay = (str: any) => cleanCpf(str).padStart(11, '0').slice(-11);
-        // Adiciona as possibilidades de coluna com base nas respostas e arquivos
-        const getCpf = (row: RowData) => cleanCpf(row['CPF'] || row['CPF Beneficiário'] || row['CPF_INSTITUIDOR'] || row['CPF_BENEFICIARIO'] || '');
-        const getCpfMatchKey = (row: RowData) => normalizeCpfForMatch(row['CPF'] || row['CPF Beneficiário'] || row['CPF_INSTITUIDOR'] || row['CPF_BENEFICIARIO'] || '');
+        const getFirstRowValue = (row: RowData, keys: string[]) => {
+          for (const key of keys) {
+            const value = row[key];
+            if (value !== undefined && value !== null && String(value).trim() !== '') {
+              return value;
+            }
+          }
+          return '';
+        };
+        const getCpfRaw = (row: RowData) => getFirstRowValue(row, [
+          'CPF',
+          'CPF Beneficiário',
+          'CPF_BENEFICIARIO',
+          'CPF_INSTITUIDOR',
+          'CPF do Beneficiário',
+          'CPF do Beneficiário(a)',
+          'CPF do Servidor'
+        ]);
+        const getCpf = (row: RowData) => cleanCpf(getCpfRaw(row));
+        const getCpfMatchKeys = (rowOrValue: RowData | string) => {
+          const digits = typeof rowOrValue === 'string' ? cleanCpf(rowOrValue) : getCpf(rowOrValue);
+          const stripped = digits.replace(/^0+/, '');
+          return Array.from(new Set([
+            digits,
+            stripped,
+            digits.padStart(11, '0').slice(-11),
+            stripped.padStart(11, '0').slice(-11)
+          ])).filter(Boolean);
+        };
+        const getCpfMatchKey = (row: RowData) => getCpfMatchKeys(row)[0] || '';
         const getName = (row: RowData) => String(
           row['NOME_BENEFICIARIO'] ||
           row['Nome Beneficiário'] ||
@@ -75,7 +102,7 @@ export default function ConfrontoPage() {
             const cpf = getCpfMatchKey(row);
             const name = getName(row);
             if (cpf && name) {
-              map.set(cpf, name);
+              getCpfMatchKeys(row).forEach(key => map.set(key, name));
             }
           });
           return map;
@@ -88,52 +115,60 @@ export default function ConfrontoPage() {
         // 2. Averbações são a base principal do confronto
         const averbacoesMap = new Map<string, RowData>();
         averbacoes.forEach(row => {
-          const cpfKey = getCpfMatchKey(row);
-          if (cpfKey) {
-            averbacoesMap.set(cpfKey, row);
-          }
+          getCpfMatchKeys(row).forEach(cpfKey => averbacoesMap.set(cpfKey, row));
         });
 
         // 3. Lista Comprev (status por CPF, tolerando zeros à esquerda suprimidos)
         const listaComprevMap = new Map<string, { status: string; row: RowData }>();
         listaComprev.forEach(row => {
-          const cpfKey = getCpfMatchKey(row);
           const status = String(
-            row['STATUS'] ||
-            row['Status'] ||
-            row['SITUAÇÃO'] ||
-            row['SITUACAO'] ||
-            row['Situação'] ||
-            row['SITUAÇÃO DO REQUERIMENTO'] ||
-            row['SITUACAO DO REQUERIMENTO'] ||
-            row['STATUS DO REQUERIMENTO'] ||
-            row['STATUS_REQUERIMENTO'] ||
-            ''
+            getFirstRowValue(row, [
+              'STATUS',
+              'Status',
+              'SITUAÇÃO',
+              'SITUACAO',
+              'Situação',
+              'SITUAÇÃO DO REQUERIMENTO',
+              'SITUACAO DO REQUERIMENTO',
+              'STATUS DO REQUERIMENTO',
+              'STATUS_REQUERIMENTO',
+              'STATUS REQUERIMENTO',
+              'SITUAÇÃO REQUERIMENTO'
+            ])
           ).trim();
 
-          if (cpfKey) {
+          getCpfMatchKeys(row).forEach(cpfKey => {
             const current = listaComprevMap.get(cpfKey);
             if (!current || status) {
               listaComprevMap.set(cpfKey, { status: status || current?.status || '', row });
             }
-          }
+          });
         });
+
+        const findMapValueByCpf = <T,>(map: Map<string, T>, rowOrValue: RowData | string) => {
+          for (const key of getCpfMatchKeys(rowOrValue)) {
+            const found = map.get(key);
+            if (found) return found;
+          }
+          return undefined;
+        };
 
         const confrontoStatusMap = new Map<string, string>();
         confrontoSheet.forEach(row => {
-          const cpfKey = getCpfMatchKey(row);
-          const status = String(row['Status Confronto'] || row['Status'] || row['status'] || '').trim();
-          if (cpfKey && status) {
-            confrontoStatusMap.set(cpfKey, status);
-          }
+          const status = String(getFirstRowValue(row, ['Status Confronto', 'Status', 'status'])).trim();
+          getCpfMatchKeys(row).forEach(cpfKey => {
+            if (status) {
+              confrontoStatusMap.set(cpfKey, status);
+            }
+          });
         });
 
         // CRUZAMENTO PRINCIPAL: Averbações + status da Lista Comprev quando existir
         const resultados: ConfrontoItem[] = [];
         
         averbacoesMap.forEach((row, cpf) => {
-          const listaItem = listaComprevMap.get(cpf);
-          const name = getName(row) || (listaItem?.row ? getName(listaItem.row) : '') || aposentadoriasMap.get(cpf) || censoMap.get(cpf) || 'Desconhecido';
+          const listaItem = findMapValueByCpf(listaComprevMap, cpf);
+          const name = getName(row) || (listaItem?.row ? getName(listaItem.row) : '') || findMapValueByCpf(aposentadoriasMap, cpf) || findMapValueByCpf(censoMap, cpf) || 'Desconhecido';
           const displayCpf = formatCpfForDisplay(row['CPF'] || row['CPF Beneficiário'] || row['CPF_INSTITUIDOR'] || row['CPF_BENEFICIARIO'] || cpf);
           const listaStatus = listaItem?.status || 'Não Realizado';
           const status = confrontoStatusMap.get(cpf) || confrontoStatusMap.get(displayCpf) || listaStatus;
