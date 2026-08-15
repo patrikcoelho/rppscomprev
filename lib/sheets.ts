@@ -162,6 +162,41 @@ export async function fetchServersFromSheet(token: string, spreadsheetId: string
   }));
 }
 
+export async function fetchSheetData(token: string, spreadsheetId: string, sheetName: string): Promise<any[]> {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}`;
+  const res = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  
+  if (!res.ok) {
+    console.error(`Falha ao ler aba ${sheetName}`);
+    return [];
+  }
+  
+  const data = await res.json();
+  const rows = data.values || [];
+  
+  if (rows.length === 0) return [];
+  
+  const headers: string[] = rows[0];
+  const result = [];
+  
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const obj: any = { _rowIndex: i + 1 }; // useful if we ever want to update the row
+    headers.forEach((header, index) => {
+      // clean header to make it easier to access (trim spaces)
+      const cleanHeader = (header || '').trim();
+      obj[cleanHeader] = row[index] || '';
+    });
+    result.push(obj);
+  }
+  
+  return result;
+}
+
 export interface ImportSummary {
   id: string;
   importDate: string;

@@ -63,6 +63,8 @@ interface AppState {
   addReport: (report: Omit<ReconciliationReport, 'id'>) => void;
   calculateFund: (entryDate?: string) => Fund;
   setServers: (servers: Server[]) => void;
+  confrontoData: Record<string, string>;
+  setConfrontoStatus: (cpf: string, status: string) => void;
 }
 
 const CUTOFF_DATE = new Date('2005-01-18T00:00:00Z');
@@ -74,6 +76,13 @@ export const useStore = create<AppState>()((set, get) => ({
   setSpreadsheetId: (id) => set({ spreadsheetId: id }),
   servers: [],
   reports: [],
+  confrontoData: {},
+  setConfrontoStatus: (cpf, status) => set((state) => ({
+    confrontoData: {
+      ...state.confrontoData,
+      [cpf]: status
+    }
+  })),
   
   calculateFund: (dateStr?: string): Fund => {
     if (!dateStr) return 'NAO_DEFINIDO';

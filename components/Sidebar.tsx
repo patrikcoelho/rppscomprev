@@ -11,6 +11,7 @@ const navItems = [
   { name: 'Servidores', href: '/servidores', icon: Users },
   { name: 'Importar CSV', href: '/importar', icon: Upload },
   { name: 'Relatórios', href: '/relatorios', icon: FileText },
+  { name: 'Confronto', href: '/confronto', icon: FileText },
   { name: 'Configurações', href: '/configuracoes', icon: Settings },
 ];
 
