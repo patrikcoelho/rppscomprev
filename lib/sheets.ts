@@ -165,6 +165,7 @@ async function ensureSheetExists(token: string, spreadsheetId: string, sheetName
 export interface ConfrontoSheetRow {
   cpf: string;
   nome: string;
+  dataInicioBeneficio?: string;
   origem: string;
   statusConfronto: string;
   statusListaComprev: string;
@@ -176,12 +177,13 @@ export async function writeConfrontoResultsToSheet(
   spreadsheetId: string,
   rows: ConfrontoSheetRow[]
 ) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${CONFRONTO_SHEET_NAME}!A:F?valueInputOption=USER_ENTERED`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${CONFRONTO_SHEET_NAME}!A:G?valueInputOption=USER_ENTERED`;
   const values = [
-    ['CPF', 'Nome', 'Origem', 'Status Confronto', 'Status Lista Comprev', 'Atualizado Em'],
+    ['CPF', 'Nome', 'Data Início Benefício', 'Origem', 'Status Confronto', 'Status Lista Comprev', 'Atualizado Em'],
     ...rows.map(row => [
       row.cpf,
       row.nome,
+      row.dataInicioBeneficio || '',
       row.origem,
       row.statusConfronto,
       row.statusListaComprev,

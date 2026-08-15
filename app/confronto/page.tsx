@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { useAuth } from '@/components/AuthProvider';
-import { fetchSheetData, writeConfrontoResultsToSheet } from '@/lib/sheets';
+import { fetchSheetData, parseSheetDate, writeConfrontoResultsToSheet } from '@/lib/sheets';
 import { AlertCircle, CheckCircle2, Search, Loader2 } from 'lucide-react';
 
 interface RowData {
@@ -12,6 +12,7 @@ interface RowData {
 interface ConfrontoItem {
   cpf: string;
   name: string;
+  dataInicioBeneficio: string;
   origem: string;
   status: string;
   listaStatus?: string;
@@ -22,7 +23,11 @@ const STATUS_OPTIONS = [
   'Em Análise',
   'Requerimento Enviado',
   'Aguardando Documentação',
-  'Concluído'
+  'Concluído',
+  'Fora do prazo',
+  'Não se aplica',
+  'Sem cadastro Sisprev',
+  'Localizar processo de averbação'
 ];
 
 export default function ConfrontoPage() {
@@ -116,6 +121,16 @@ export default function ConfrontoPage() {
           row['Nome'] ||
           ''
         ).trim();
+        const getDataIniBeneficio = (row: RowData) => {
+          const raw = getFirstRowValue(row, [
+            'DATA_INI_BENEFICIO',
+            'Data_INI_BENEFICIO',
+            'DATA INI BENEFICIO',
+            'DATA_INI',
+            'DATA DE INI BENEFICIO'
+          ]);
+          return raw ? parseSheetDate(raw) : '';
+        };
 
         const buildNameMap = (rows: RowData[]) => {
           const map = new Map<string, string>();
@@ -129,9 +144,24 @@ export default function ConfrontoPage() {
           return map;
         };
 
+        const buildAposentadoriasMap = (rows: RowData[]) => {
+          const map = new Map<string, { name: string; dataInicioBeneficio: string }>();
+          rows.forEach(row => {
+            const cpf = getCpf(row);
+            const name = getName(row);
+            if (cpf) {
+              map.set(cpf, {
+                name,
+                dataInicioBeneficio: getDataIniBeneficio(row)
+              });
+            }
+          });
+          return map;
+        };
+
         // 1. Mapas auxiliares para cruzamento e enriquecimento de dados
         const censoMap = buildNameMap(censo);
-        const aposentadoriasMap = buildNameMap(aposentadorias);
+        const aposentadoriasMap = buildAposentadoriasMap(aposentadorias);
 
         // 2. Averbações são a base principal do confronto
         const averbacoesMap = new Map<string, RowData>();
@@ -178,7 +208,9 @@ export default function ConfrontoPage() {
             return;
           }
 
-          const name = getName(row) || (listaItem?.row ? getName(listaItem.row) : '') || aposentadoriasMap.get(cpf) || censoMap.get(cpf) || 'Desconhecido';
+          const aposentadoriaInfo = aposentadoriasMap.get(cpf);
+          const name = getName(row) || (listaItem?.row ? getName(listaItem.row) : '') || aposentadoriaInfo?.name || censoMap.get(cpf) || 'Desconhecido';
+          const dataInicioBeneficio = aposentadoriaInfo?.dataInicioBeneficio || '';
           const displayCpf = formatCpfForDisplay(getCpfRaw(row) || cpf);
           const listaStatus = listaItem?.status || 'Não Realizado';
           const status = confrontoStatusMap.get(cpf) || confrontoStatusMap.get(displayCpf) || listaStatus;
@@ -187,6 +219,7 @@ export default function ConfrontoPage() {
           const nextItem: ConfrontoItem = {
             cpf: displayCpf,
             name,
+            dataInicioBeneficio,
             origem: 'Averbacoes',
             status,
             listaStatus
@@ -200,6 +233,7 @@ export default function ConfrontoPage() {
           resultadosMap.set(displayCpf, {
             ...current,
             name: current.name && current.name !== 'Desconhecido' ? current.name : nextItem.name,
+            dataInicioBeneficio: current.dataInicioBeneficio || nextItem.dataInicioBeneficio,
             status: current.status && current.status !== 'Não Realizado' ? current.status : nextItem.status,
             listaStatus: current.listaStatus || nextItem.listaStatus
           });
@@ -214,6 +248,7 @@ export default function ConfrontoPage() {
           resultados.map(item => ({
             cpf: item.cpf,
             nome: item.name,
+            dataInicioBeneficio: item.dataInicioBeneficio,
             origem: item.origem,
             statusConfronto: item.status,
             statusListaComprev: item.listaStatus || '',
@@ -235,7 +270,7 @@ export default function ConfrontoPage() {
 
   const handleStatusChange = (cpf: string, newStatus: string) => {
     setConfrontoStatus(cpf, newStatus);
-    const nextItems = items.map(item => (
+        const nextItems = items.map(item => (
       item.cpf === cpf ? { ...item, status: newStatus } : item
     ));
     setItems(nextItems);
@@ -247,6 +282,7 @@ export default function ConfrontoPage() {
         nextItems.map(item => ({
           cpf: item.cpf,
           nome: item.name,
+          dataInicioBeneficio: item.dataInicioBeneficio,
           origem: item.origem,
           statusConfronto: item.status,
           statusListaComprev: item.listaStatus || '',
@@ -358,13 +394,14 @@ export default function ConfrontoPage() {
                   <tr>
                     <th className="px-6 py-4 font-medium">Servidor</th>
                     <th className="px-6 py-4 font-medium">CPF</th>
+                    <th className="px-6 py-4 font-medium">Início Aposentadoria</th>
                     <th className="px-6 py-4 font-medium">Situação / Ação</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {filteredItems.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="px-6 py-8 text-center text-slate-500">
+                      <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
                         Nenhum servidor pendente encontrado com os filtros atuais.
                       </td>
                     </tr>
@@ -377,6 +414,9 @@ export default function ConfrontoPage() {
                         </td>
                         <td className="px-6 py-4 text-slate-600 font-mono">
                           {formatCpf(item.cpf)}
+                        </td>
+                        <td className="px-6 py-4 text-slate-600">
+                          {item.dataInicioBeneficio || '-'}
                         </td>
                         <td className="px-6 py-4">
                           <select
