@@ -30,25 +30,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setMounted(true);
     const unsubscribe = initAuth(
       async (u, t) => {
-        if (spreadsheetId && u.email) {
-          const hasAccess = await verifyUserAccess(t, spreadsheetId, u.email);
-          if (!hasAccess) {
-            setAccessError('Acesso Negado: Seu e-mail não está na aba Acessos.');
-            await logout();
-            setUser(null);
-            setToken(null);
-            setNeedsAuth(true);
-            setLoading(false);
-            return;
+        try {
+          if (spreadsheetId && u.email) {
+            const hasAccess = await verifyUserAccess(t, spreadsheetId, u.email);
+            if (!hasAccess) {
+              setAccessError('Acesso Negado: Seu e-mail não está na aba Acessos.');
+              await logout();
+              setUser(null);
+              setToken(null);
+              setNeedsAuth(true);
+              return;
+            }
           }
+
+          setAccessError(null);
+          setUser(u);
+          setToken(t);
+          setNeedsAuth(false);
+        } catch (err: any) {
+          console.error('Auth initialization failed:', err);
+          setAccessError(err?.message === 'TOKEN_EXPIRED'
+            ? 'Sua sessão do Google expirou. Faça login novamente.'
+            : 'Falha ao validar seu acesso. Faça login novamente.');
+          await logout();
+          setUser(null);
+          setToken(null);
+          setNeedsAuth(true);
+        } finally {
+          setLoading(false);
         }
-        setAccessError(null);
-        setUser(u);
-        setToken(t);
-        setNeedsAuth(false);
-        setLoading(false);
       },
-      () => {
+      async () => {
         setUser(null);
         setToken(null);
         setNeedsAuth(true);
@@ -80,6 +92,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       console.error('Login failed:', err);
       setAccessError(err.message === 'TOKEN_EXPIRED' ? 'Sessão expirada. Tente novamente.' : 'Erro ao fazer login.');
+      await logout();
+      setUser(null);
+      setToken(null);
+      setNeedsAuth(true);
     } finally {
       setIsLoggingIn(false);
     }
