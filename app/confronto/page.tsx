@@ -442,6 +442,7 @@ export default function ConfrontoPage() {
                             onChange={(e) => handleStatusChange(item.cpf, e.target.value)}
                             className={`px-3 py-1.5 rounded-md border text-sm font-medium w-full sm:w-56 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 transition-colors ${
                               item.status === 'Não Realizado' ? 'bg-red-50 text-red-700 border-red-200' :
+                              item.status === 'Fora do prazo' ? 'bg-orange-50 text-orange-700 border-orange-200' :
                               item.status === 'Concluído' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                               'bg-blue-50 text-blue-700 border-blue-200'
                             }`}
