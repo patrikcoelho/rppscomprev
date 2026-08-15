@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { useAuth } from '@/components/AuthProvider';
-import { fetchSheetData } from '@/lib/sheets';
+import { fetchSheetData, writeConfrontoResultsToSheet } from '@/lib/sheets';
 import { AlertCircle, CheckCircle2, Search, Loader2 } from 'lucide-react';
 
 interface RowData {
@@ -14,6 +14,7 @@ interface ConfrontoItem {
   name: string;
   origem: string;
   status: string;
+  listaStatus?: string;
 }
 
 const STATUS_OPTIONS = [
@@ -25,7 +26,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function ConfrontoPage() {
-  const { spreadsheetId, confrontoData, setConfrontoStatus } = useStore();
+  const { spreadsheetId, setConfrontoStatus } = useStore();
   const { token } = useAuth();
   
   const [loading, setLoading] = useState(false);
@@ -41,16 +42,24 @@ export default function ConfrontoPage() {
       setError(null);
       
       try {
-        const [censo, aposentadorias, averbacoes, listaComprev] = await Promise.all([
+        const [censo, aposentadorias, averbacoes, listaComprev, confrontoSheet] = await Promise.all([
           fetchSheetData(token, spreadsheetId, 'Censo'),
           fetchSheetData(token, spreadsheetId, 'Aposentadorias'),
           fetchSheetData(token, spreadsheetId, 'Averbacoes'),
-          fetchSheetData(token, spreadsheetId, 'Lista_comprev')
+          fetchSheetData(token, spreadsheetId, 'Lista_comprev'),
+          fetchSheetData(token, spreadsheetId, 'Confronto')
         ]);
         
         const cleanCpf = (str: any) => (str ? String(str).replace(/[^\d]/g, '') : '');
+        const normalizeCpfForMatch = (str: any) => {
+          const digits = cleanCpf(str);
+          const trimmed = digits.replace(/^0+/, '');
+          return trimmed || '0';
+        };
+        const formatCpfForDisplay = (str: any) => cleanCpf(str).padStart(11, '0').slice(-11);
         // Adiciona as possibilidades de coluna com base nas respostas e arquivos
         const getCpf = (row: RowData) => cleanCpf(row['CPF'] || row['CPF Beneficiário'] || row['CPF_INSTITUIDOR'] || row['CPF_BENEFICIARIO'] || '');
+        const getCpfMatchKey = (row: RowData) => normalizeCpfForMatch(row['CPF'] || row['CPF Beneficiário'] || row['CPF_INSTITUIDOR'] || row['CPF_BENEFICIARIO'] || '');
         const getName = (row: RowData) => String(
           row['NOME_BENEFICIARIO'] ||
           row['Nome Beneficiário'] ||
@@ -63,7 +72,7 @@ export default function ConfrontoPage() {
         const buildNameMap = (rows: RowData[]) => {
           const map = new Map<string, string>();
           rows.forEach(row => {
-            const cpf = getCpf(row);
+            const cpf = getCpfMatchKey(row);
             const name = getName(row);
             if (cpf && name) {
               map.set(cpf, name);
@@ -79,36 +88,78 @@ export default function ConfrontoPage() {
         // 2. Averbações são a base principal do confronto
         const averbacoesMap = new Map<string, RowData>();
         averbacoes.forEach(row => {
-          const cpf = getCpf(row);
-          if (cpf) {
-            averbacoesMap.set(cpf, row);
+          const cpfKey = getCpfMatchKey(row);
+          if (cpfKey) {
+            averbacoesMap.set(cpfKey, row);
           }
         });
 
-        // 3. Lista Comprev (Requerimentos já feitos)
-        const requeridosSet = new Set<string>();
+        // 3. Lista Comprev (status por CPF, tolerando zeros à esquerda suprimidos)
+        const listaComprevMap = new Map<string, { status: string; row: RowData }>();
         listaComprev.forEach(row => {
-          const cpf = getCpf(row);
-          if (cpf) requeridosSet.add(cpf);
+          const cpfKey = getCpfMatchKey(row);
+          const status = String(
+            row['STATUS'] ||
+            row['Status'] ||
+            row['SITUAÇÃO'] ||
+            row['SITUACAO'] ||
+            row['Situação'] ||
+            row['SITUAÇÃO DO REQUERIMENTO'] ||
+            row['SITUACAO DO REQUERIMENTO'] ||
+            row['STATUS DO REQUERIMENTO'] ||
+            row['STATUS_REQUERIMENTO'] ||
+            ''
+          ).trim();
+
+          if (cpfKey) {
+            const current = listaComprevMap.get(cpfKey);
+            if (!current || status) {
+              listaComprevMap.set(cpfKey, { status: status || current?.status || '', row });
+            }
+          }
         });
 
-        // CRUZAMENTO PRINCIPAL: Averbações + SEM Requerimento
+        const confrontoStatusMap = new Map<string, string>();
+        confrontoSheet.forEach(row => {
+          const cpfKey = getCpfMatchKey(row);
+          const status = String(row['Status Confronto'] || row['Status'] || row['status'] || '').trim();
+          if (cpfKey && status) {
+            confrontoStatusMap.set(cpfKey, status);
+          }
+        });
+
+        // CRUZAMENTO PRINCIPAL: Averbações + status da Lista Comprev quando existir
         const resultados: ConfrontoItem[] = [];
         
         averbacoesMap.forEach((row, cpf) => {
-          if (requeridosSet.has(cpf)) return;
-
-          const name = getName(row) || aposentadoriasMap.get(cpf) || censoMap.get(cpf) || 'Desconhecido';
+          const listaItem = listaComprevMap.get(cpf);
+          const name = getName(row) || (listaItem?.row ? getName(listaItem.row) : '') || aposentadoriasMap.get(cpf) || censoMap.get(cpf) || 'Desconhecido';
+          const displayCpf = formatCpfForDisplay(row['CPF'] || row['CPF Beneficiário'] || row['CPF_INSTITUIDOR'] || row['CPF_BENEFICIARIO'] || cpf);
+          const listaStatus = listaItem?.status || 'Não Realizado';
+          const status = confrontoStatusMap.get(cpf) || confrontoStatusMap.get(displayCpf) || listaStatus;
 
           resultados.push({
-            cpf,
+            cpf: displayCpf,
             name,
             origem: 'Averbacoes',
-            status: confrontoData[cpf] || 'Não Realizado'
+            status,
+            listaStatus
           });
         });
         
         setItems(resultados);
+        await writeConfrontoResultsToSheet(
+          token,
+          spreadsheetId,
+          resultados.map(item => ({
+            cpf: item.cpf,
+            nome: item.name,
+            origem: item.origem,
+            statusConfronto: item.status,
+            statusListaComprev: item.listaStatus || '',
+            updatedAt: new Date().toISOString()
+          }))
+        );
       } catch (err) {
         console.error(err);
         setError('Ocorreu um erro ao buscar os dados da planilha. Verifique as permissões e se as abas existem.');
@@ -122,9 +173,28 @@ export default function ConfrontoPage() {
 
   const handleStatusChange = (cpf: string, newStatus: string) => {
     setConfrontoStatus(cpf, newStatus);
-    setItems(prev => prev.map(item => 
+    const nextItems = items.map(item => (
       item.cpf === cpf ? { ...item, status: newStatus } : item
     ));
+    setItems(nextItems);
+
+    if (token && spreadsheetId) {
+      void writeConfrontoResultsToSheet(
+        token,
+        spreadsheetId,
+        nextItems.map(item => ({
+          cpf: item.cpf,
+          nome: item.name,
+          origem: item.origem,
+          statusConfronto: item.status,
+          statusListaComprev: item.listaStatus || '',
+          updatedAt: new Date().toISOString()
+        }))
+      ).catch((err) => {
+        console.error(err);
+        setError('Não foi possível salvar a alteração na aba de confronto.');
+      });
+    }
   };
 
   const filteredItems = items.filter(item => 
@@ -149,7 +219,7 @@ export default function ConfrontoPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">Confronto Comprev</h1>
-          <p className="text-slate-500">Identifique aposentados com averbação pendentes de requerimento.</p>
+          <p className="text-slate-500">Identifique aposentados com averbação, preservando o status da lista e o status manual na aba de confronto.</p>
         </div>
       </div>
 
@@ -256,7 +326,7 @@ export default function ConfrontoPage() {
                               'bg-blue-50 text-blue-700 border-blue-200'
                             }`}
                           >
-                            {STATUS_OPTIONS.map(opt => (
+                            {Array.from(new Set([item.status, ...STATUS_OPTIONS])).map(opt => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
                           </select>

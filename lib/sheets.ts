@@ -1,5 +1,7 @@
 import { Server } from './store';
 
+const CONFRONTO_SHEET_NAME = 'Confronto';
+
 export function parseSheetDate(value: any): string {
   if (!value) return '';
   let numVal = Number(value);
@@ -130,6 +132,85 @@ export async function batchAppendPaymentsToSheet(token: string, spreadsheetId: s
   
   if (!res.ok) {
     throw new Error('Falha ao adicionar lote de pagamentos na planilha.');
+  }
+}
+
+async function ensureSheetExists(token: string, spreadsheetId: string, sheetName: string) {
+  const batchUpdateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`;
+  const addSheetBody = {
+    requests: [{ addSheet: { properties: { title: sheetName } } }]
+  };
+
+  const res = await fetch(batchUpdateUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(addSheetBody)
+  });
+
+  if (res.ok) {
+    return true;
+  }
+
+  const errorText = await res.text();
+  if (res.status === 400 && errorText.toLowerCase().includes('already exists')) {
+    return true;
+  }
+
+  return false;
+}
+
+export interface ConfrontoSheetRow {
+  cpf: string;
+  nome: string;
+  origem: string;
+  statusConfronto: string;
+  statusListaComprev: string;
+  updatedAt?: string;
+}
+
+export async function writeConfrontoResultsToSheet(
+  token: string,
+  spreadsheetId: string,
+  rows: ConfrontoSheetRow[]
+) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${CONFRONTO_SHEET_NAME}!A:F?valueInputOption=USER_ENTERED`;
+  const values = [
+    ['CPF', 'Nome', 'Origem', 'Status Confronto', 'Status Lista Comprev', 'Atualizado Em'],
+    ...rows.map(row => [
+      row.cpf,
+      row.nome,
+      row.origem,
+      row.statusConfronto,
+      row.statusListaComprev,
+      row.updatedAt || new Date().toISOString()
+    ])
+  ];
+
+  const write = async () => fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ values })
+  });
+
+  let res = await write();
+  if (res.ok) return;
+
+  const errorText = await res.text();
+  if (res.status === 400 || errorText.toLowerCase().includes('unable to parse range')) {
+    const created = await ensureSheetExists(token, spreadsheetId, CONFRONTO_SHEET_NAME);
+    if (created) {
+      res = await write();
+    }
+  }
+
+  if (!res.ok) {
+    throw new Error('Falha ao atualizar a aba de confronto.');
   }
 }
 

@@ -40,7 +40,8 @@ export default function ConfigPage() {
           },
           sheets: [
             { properties: { title: 'Servidores' } },
-            { properties: { title: 'Pagamentos' } }
+            { properties: { title: 'Pagamentos' } },
+            { properties: { title: 'Confronto' } }
           ]
         })
       });
