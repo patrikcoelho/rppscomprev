@@ -112,9 +112,6 @@ export default function ConfrontoPage() {
           return fallback ? String(fallback).trim() : '';
         };
         const getName = (row: RowData) => String(
-          row['NOME_BENEFICIARIO'] ||
-          row['Nome Beneficiário'] ||
-          row['NOME_INSTITUIDOR'] ||
           row['NOME'] ||
           row['Nome'] ||
           ''
