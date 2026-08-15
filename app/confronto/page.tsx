@@ -30,6 +30,18 @@ const STATUS_OPTIONS = [
   'Localizar processo de averbação'
 ];
 
+const STATUS_STYLES: Record<string, string> = {
+  'Não Realizado': 'bg-red-50 text-red-700 border-red-200',
+  'Em Análise': 'bg-sky-50 text-sky-700 border-sky-200',
+  'Requerimento Enviado': 'bg-violet-50 text-violet-700 border-violet-200',
+  'Aguardando Documentação': 'bg-amber-50 text-amber-800 border-amber-200',
+  'Concluído': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'Fora do prazo': 'bg-orange-50 text-orange-700 border-orange-200',
+  'Não se aplica': 'bg-slate-100 text-slate-700 border-slate-300',
+  'Sem cadastro Sisprev': 'bg-rose-50 text-rose-700 border-rose-200',
+  'Localizar processo de averbação': 'bg-indigo-50 text-indigo-700 border-indigo-200'
+};
+
 export default function ConfrontoPage() {
   const { spreadsheetId, setConfrontoStatus } = useStore();
   const { token } = useAuth();
@@ -440,12 +452,7 @@ export default function ConfrontoPage() {
                           <select
                             value={item.status}
                             onChange={(e) => handleStatusChange(item.cpf, e.target.value)}
-                            className={`px-3 py-1.5 rounded-md border text-sm font-medium w-full sm:w-56 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 transition-colors ${
-                              item.status === 'Não Realizado' ? 'bg-red-50 text-red-700 border-red-200' :
-                              item.status === 'Fora do prazo' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                              item.status === 'Concluído' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                              'bg-blue-50 text-blue-700 border-blue-200'
-                            }`}
+                            className={`px-3 py-1.5 rounded-md border text-sm font-medium w-full sm:w-56 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 transition-colors ${STATUS_STYLES[item.status] || 'bg-slate-50 text-slate-700 border-slate-200'}`}
                           >
                             {Array.from(new Set([item.status, ...STATUS_OPTIONS])).map(opt => (
                               <option key={opt} value={opt}>{opt}</option>
