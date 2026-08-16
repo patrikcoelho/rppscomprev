@@ -114,7 +114,7 @@ export default function Dashboard() {
             </select>
           </div>
           <Link 
-            href="/importar" 
+            href="/pagamentos" 
             className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm w-full sm:w-auto text-center whitespace-nowrap"
           >
             Nova Importação
@@ -298,7 +298,7 @@ export default function Dashboard() {
               <FileBox className="w-12 h-12 text-slate-200 mb-3" />
               <p className="text-slate-500 text-sm mb-4">Você ainda não realizou nenhuma importação de fluxos.</p>
               <Link 
-                href="/importar" 
+                href="/pagamentos" 
                 className="text-blue-600 font-medium hover:underline text-sm"
               >
                 Faça sua primeira importação

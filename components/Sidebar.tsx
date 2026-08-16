@@ -9,7 +9,8 @@ import { useAuth } from '@/components/AuthProvider';
 const navItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Servidores', href: '/servidores', icon: Users },
-  { name: 'Importar CSV', href: '/importar', icon: Upload },
+  { name: 'Ajuste de Contas', href: '/ajuste-contas', icon: FileText },
+  { name: 'Pagamentos', href: '/pagamentos', icon: Upload },
   { name: 'Relatórios', href: '/relatorios', icon: FileText },
   { name: 'Confronto', href: '/confronto', icon: FileText },
   { name: 'Configurações', href: '/configuracoes', icon: Settings },

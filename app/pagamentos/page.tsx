@@ -75,7 +75,7 @@ const FileBox = ({
   </div>
 );
 
-export default function ImportarPage() {
+export default function PagamentosPage() {
   const router = useRouter();
   const { addReport, spreadsheetId } = useStore();
   const { token } = useAuth();
@@ -615,7 +615,8 @@ export default function ImportarPage() {
   return (
     <div className="p-8 max-w-5xl mx-auto w-full">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Importar Fluxos Mensais</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Pagamentos Detalhados</h1>
+        <p className="text-slate-500">Importe o arquivo individualizado para processar os repasses de cada servidor.</p>
         <p className="text-slate-500">Faça o upload dos arquivos do Comprev para reconciliação.</p>
       </div>
 

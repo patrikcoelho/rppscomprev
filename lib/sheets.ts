@@ -495,3 +495,91 @@ export async function verifyUserAccess(token: string, spreadsheetId: string, ema
     return false;
   }
 }
+
+export interface AjusteContaRow {
+  id: string; // ex: 07/2026-RGPS
+  competencia: string;
+  entidade: string;
+  cnpj: string;
+  tipo: 'RECEBER' | 'PAGAR';
+  valorEsperado: number;
+  valorRealizado: number;
+  status: 'Pendente' | 'Concluído';
+  updatedAt?: string;
+}
+
+const AJUSTE_SHEET_NAME = 'Ajuste_Contas';
+
+export async function fetchAjustesFromSheet(token: string, spreadsheetId: string): Promise<AjusteContaRow[]> {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${AJUSTE_SHEET_NAME}!A:I?valueRenderOption=UNFORMATTED_VALUE`;
+  try {
+    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) throw new Error('TOKEN_EXPIRED');
+      return [];
+    }
+    
+    const data = await res.json();
+    const rows = data.values || [];
+    if (rows.length <= 1) return [];
+    
+    return rows.slice(1).map((row: any[]) => ({
+      id: row[0] || '',
+      competencia: row[1] || '',
+      entidade: row[2] || '',
+      cnpj: row[3] || '',
+      tipo: row[4] as 'RECEBER' | 'PAGAR',
+      valorEsperado: parseNumber(row[5]),
+      valorRealizado: parseNumber(row[6]),
+      status: row[7] as 'Pendente' | 'Concluído',
+      updatedAt: row[8] || ''
+    }));
+  } catch (err: any) {
+    if (err.message === 'TOKEN_EXPIRED') throw err;
+    console.error('Error fetching Ajustes:', err);
+    return [];
+  }
+}
+
+export async function writeAjustesToSheet(
+  token: string,
+  spreadsheetId: string,
+  rows: AjusteContaRow[]
+) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${AJUSTE_SHEET_NAME}!A:I?valueInputOption=USER_ENTERED`;
+  const values = [
+    ['ID', 'Competência', 'Entidade', 'CNPJ', 'Tipo', 'Valor Esperado', 'Valor Realizado', 'Status', 'Atualizado Em'],
+    ...rows.map(row => [
+      row.id,
+      row.competencia,
+      row.entidade,
+      row.cnpj,
+      row.tipo,
+      row.valorEsperado,
+      row.valorRealizado,
+      row.status,
+      row.updatedAt || new Date().toISOString()
+    ])
+  ];
+
+  const write = async () => fetch(url, {
+    method: 'PUT',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ values })
+  });
+
+  let res = await write();
+  if (res.ok) return;
+
+  const errorText = await res.text();
+  if (res.status === 400 || errorText.toLowerCase().includes('unable to parse range')) {
+    const created = await ensureSheetExists(token, spreadsheetId, AJUSTE_SHEET_NAME);
+    if (created) {
+      res = await write();
+    }
+  }
+
+  if (!res.ok) {
+    throw new Error('Falha ao atualizar a aba de Ajuste_Contas.');
+  }
+}
