@@ -202,7 +202,11 @@ export default function AjusteContasPage() {
           setFeedback({ type: 'success', message: `${novos.length} novos ajustes de contas importados com sucesso!` });
         } catch (err: any) {
           console.error(err);
-          setFeedback({ type: 'error', message: err.message || 'Erro ao processar o arquivo CSV.' });
+          if (err.message === 'TOKEN_EXPIRED') {
+            setFeedback({ type: 'error', message: 'Sua sessão expirou ou você não tem permissão de Editor na planilha. Por favor, recarregue a página, faça login novamente e certifique-se de que a conta Google utilizada tem acesso de edição à planilha.' });
+          } else {
+            setFeedback({ type: 'error', message: err.message || 'Erro ao processar o arquivo CSV.' });
+          }
         } finally {
           setIsProcessing(false);
         }

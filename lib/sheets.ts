@@ -572,12 +572,19 @@ export async function writeAjustesToSheet(
   if (res.ok) return;
 
   let errorText = await res.text();
+  
+  if (res.status === 401 || res.status === 403) {
+    throw new Error('TOKEN_EXPIRED');
+  }
+
   if (res.status === 400 || errorText.toLowerCase().includes('unable to parse range')) {
     const created = await ensureSheetExists(token, spreadsheetId, AJUSTE_SHEET_NAME);
     if (created) {
       res = await write();
       if (res.ok) return;
       errorText = await res.text();
+    } else {
+      throw new Error(`Falha ao criar a aba Ajuste_Contas. Verifique se você tem permissão de Editor na planilha.`);
     }
   }
 
