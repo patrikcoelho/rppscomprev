@@ -71,7 +71,23 @@ export default function AjusteContasPage() {
   const parseNumber = (val: string | number | undefined | null) => {
     if (typeof val === 'number') return val;
     if (!val) return 0;
-    return parseFloat(val.toString().replace(/\./g, '').replace(',', '.')) || 0;
+    
+    const str = val.toString().trim();
+    if (str.includes(',') && !str.includes('.')) {
+      return parseFloat(str.replace(',', '.')) || 0;
+    } else if (str.includes(',') && str.includes('.')) {
+      const lastComma = str.lastIndexOf(',');
+      const lastDot = str.lastIndexOf('.');
+      if (lastComma > lastDot) {
+        // Formato BR: 1.234,56
+        return parseFloat(str.replace(/\./g, '').replace(',', '.')) || 0;
+      } else {
+        // Formato US: 1,234.56
+        return parseFloat(str.replace(/,/g, '')) || 0;
+      }
+    }
+    // Formato US sem separador de milhar: 1234.56
+    return parseFloat(str) || 0;
   };
 
   const processFile = async (file: File) => {
@@ -186,20 +202,40 @@ export default function AjusteContasPage() {
           }
 
           // Mesclar com os existentes
-          const existingIds = new Set(ajustes.map(a => a.id));
-          const novos = parsedRows.filter(r => !existingIds.has(r.id));
+          const existingMap = new Map(ajustes.map(a => [a.id, a]));
+          let novasCriadas = 0;
+          let atualizadas = 0;
+
+          for (const row of parsedRows) {
+            if (existingMap.has(row.id)) {
+              const existing = existingMap.get(row.id)!;
+              if (existing.valorEsperado !== row.valorEsperado) {
+                existing.valorEsperado = row.valorEsperado;
+                existing.updatedAt = now;
+                atualizadas++;
+              }
+            } else {
+              existingMap.set(row.id, row);
+              novasCriadas++;
+            }
+          }
           
-          if (novos.length === 0) {
-            setFeedback({ type: 'success', message: 'Nenhum novo ajuste para importar (todos já existem).' });
+          if (novasCriadas === 0 && atualizadas === 0) {
+            setFeedback({ type: 'success', message: 'Nenhum novo ajuste para importar (todos já existem e estão atualizados).' });
             setIsProcessing(false);
             return;
           }
 
-          const combined = [...novos, ...ajustes];
+          const combined = Array.from(existingMap.values());
           
           await writeAjustesToSheet(token!, spreadsheetId!, combined);
           setAjustes(combined);
-          setFeedback({ type: 'success', message: `${novos.length} novos ajustes de contas importados com sucesso!` });
+          
+          const msg = [];
+          if (novasCriadas > 0) msg.push(`${novasCriadas} novos ajustes criados`);
+          if (atualizadas > 0) msg.push(`${atualizadas} ajustes atualizados`);
+          
+          setFeedback({ type: 'success', message: msg.join(' e ') + ' com sucesso!' });
         } catch (err: any) {
           console.error(err);
           if (err.message === 'TOKEN_EXPIRED') {
