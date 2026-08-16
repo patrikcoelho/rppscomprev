@@ -580,6 +580,6 @@ export async function writeAjustesToSheet(
   }
 
   if (!res.ok) {
-    throw new Error('Falha ao atualizar a aba de Ajuste_Contas.');
+    throw new Error(`Falha ao atualizar a aba de Ajuste_Contas. Detalhes: ${await res.text()}`);
   }
 }
