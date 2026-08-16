@@ -254,28 +254,44 @@ export default function PagamentosPage() {
               return isNaN(num) ? 0 : num;
             };
 
+            const getValAndExists = (search: string) => {
+              const normalizedSearch = search.toLowerCase().replace(/[^a-z0-9]/g, '');
+              let key = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === normalizedSearch);
+              if (!key) {
+                key = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(normalizedSearch));
+              }
+              return { val: key ? row[key] : undefined, exists: !!key };
+            };
+
             const comp = getVal('competncia') || getVal('competencia') || '';
 
             let totalValor = 0;
-            const valorTotalCol = parseVal(getVal('valortotal'));
+            
+            const vt = getValAndExists('valortotal');
+            const fluxo = getValAndExists('valorfluxomensal');
+            const fluxoCalc = getValAndExists('valorfluxocalculado');
 
-            if (valorTotalCol > 0) {
-              totalValor = valorTotalCol;
-            } else {
-              const valorFluxo = parseVal(getVal('valorfluxomensal')) || parseVal(getVal('valorfluxocalculado'));
+            if (vt.exists) {
+              totalValor = parseVal(vt.val);
+            } else if (fluxo.exists || fluxoCalc.exists) {
+              const valorFluxo = parseVal(fluxo.val) || parseVal(fluxoCalc.val);
               const valor13Fluxo = parseVal(getVal('valor13fluxomensal')) || parseVal(getVal('valor13fluxocalculado'));
               const valorPassivo = parseVal(getVal('valorpassivo'));
               const valor13Passivo = parseVal(getVal('valor13passivo'));
               const valorProRata = parseVal(getVal('valorproratabase')) || parseVal(getVal('prrataatual'));
               
               totalValor = valorFluxo + valor13Fluxo + valorPassivo + valor13Passivo + valorProRata;
-
+            } else {
               // Fallbacks for files that might have different columns (like 'valorglosa' or just 'valor')
-              if (totalValor === 0) {
-                const valorGlosa = parseVal(getVal('valorglosa'));
-                if (valorGlosa > 0) {
-                  totalValor = valorGlosa;
-                } else if (getVal('valor')) {
+              const valorGlosa = parseVal(getVal('valorglosa'));
+              if (valorGlosa > 0) {
+                totalValor = valorGlosa;
+              } else if (getValAndExists('valor').exists) {
+                // only exact match for 'valor' if possible to avoid picking 'valorrmicompensacao'
+                const exactValor = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === 'valor');
+                if (exactValor) {
+                  totalValor = parseVal(row[exactValor]);
+                } else {
                   totalValor = parseVal(getVal('valor'));
                 }
               }
