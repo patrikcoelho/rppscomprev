@@ -261,7 +261,14 @@ export default function AjusteContasPage() {
   };
 
   const handleValueChange = (id: string, value: string) => {
-    const num = parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
+    const digits = value.replace(/\D/g, '');
+    if (!digits) {
+      const newVals = { ...editValues };
+      delete newVals[id];
+      setEditValues(newVals);
+      return;
+    }
+    const num = parseInt(digits, 10) / 100;
     setEditValues(prev => ({ ...prev, [id]: num }));
   };
 
@@ -417,8 +424,8 @@ export default function AjusteContasPage() {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <input 
-                            type="number"
-                            value={currentValue || ''}
+                            type="text"
+                            value={hasEdit ? new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(editValues[row.id] || 0) : row.valorRealizado > 0 ? new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(row.valorRealizado) : ''}
                             onChange={(e) => handleValueChange(row.id, e.target.value)}
                             placeholder="0,00"
                             className="w-32 text-right px-3 py-1.5 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-700 font-medium"
