@@ -571,15 +571,15 @@ export async function writeAjustesToSheet(
   let res = await write();
   if (res.ok) return;
 
-  const errorText = await res.text();
+  let errorText = await res.text();
   if (res.status === 400 || errorText.toLowerCase().includes('unable to parse range')) {
     const created = await ensureSheetExists(token, spreadsheetId, AJUSTE_SHEET_NAME);
     if (created) {
       res = await write();
+      if (res.ok) return;
+      errorText = await res.text();
     }
   }
 
-  if (!res.ok) {
-    throw new Error(`Falha ao atualizar a aba de Ajuste_Contas. Detalhes: ${await res.text()}`);
-  }
+  throw new Error(`Falha ao atualizar a aba de Ajuste_Contas. Detalhes: ${errorText}`);
 }
