@@ -7,7 +7,7 @@ import Papa from 'papaparse';
 import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import { fetchServersFromSheet, batchAppendServersToSheet, batchAppendPaymentsToSheet } from '@/lib/sheets';
+import { fetchServersFromSheet, batchAppendServersToSheet, batchAppendPaymentsToSheet, fetchAjustesFromSheet, AjusteContaRow } from '@/lib/sheets';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ParsedRow {
@@ -95,6 +95,8 @@ export default function PagamentosPage() {
   const [step, setStep] = useState<1 | 2>(1); // 1: Upload, 2: Reconciliation
   
   const [receivedTotals, setReceivedTotals] = useState<Record<string, string>>({});
+  const [ajustesContas, setAjustesContas] = useState<AjusteContaRow[]>([]);
+  const [expectedTotalsFromAjustes, setExpectedTotalsFromAjustes] = useState<Record<string, number>>({});
   
   const [selectedServerForJuros, setSelectedServerForJuros] = useState('');
   const [jurosValueStr, setJurosValueStr] = useState('');
@@ -124,8 +126,21 @@ export default function PagamentosPage() {
       const dest = s.destinatario || 'NAO_INFORMADO';
       map.set(dest, (map.get(dest) || 0) + (s.value || 0));
     });
-    return Array.from(map.entries()).map(([name, total]) => ({ name, total }));
-  }, [reportServers]);
+    
+    const normalize = (n: string) => n.toUpperCase().replace(/\s*-\s*[A-Z]{2}$/, '').replace(/[^A-Z]/g, '');
+    
+    return Array.from(map.entries()).map(([name, total]) => {
+      const normName = normalize(name);
+      const match = ajustesContas.find(a => a.competencia === competencia && normalize(a.entidade) === normName);
+      
+      return { 
+        name, 
+        total,
+        resumoEsperado: match?.valorEsperado,
+        resumoRealizado: match?.valorRealizado
+      };
+    });
+  }, [reportServers, ajustesContas, competencia]);
 
   const normalizeCpf = (c: string | number) => String(c).replace(/\D/g, '').padStart(11, '0');
 
@@ -331,9 +346,16 @@ export default function PagamentosPage() {
       }
       
       let fetchedServers: Server[] = [];
+      let fetchedAjustes: AjusteContaRow[] = [];
       if (token && spreadsheetId) {
         fetchedServers = await fetchServersFromSheet(token, spreadsheetId);
         setSheetServers(fetchedServers);
+        try {
+          fetchedAjustes = await fetchAjustesFromSheet(token, spreadsheetId);
+          setAjustesContas(fetchedAjustes);
+        } catch(err) {
+          console.warn('Could not fetch Ajustes de Contas', err);
+        }
       }
       
       let firstComp = '';
@@ -345,7 +367,7 @@ export default function PagamentosPage() {
       }
       setCompetencia(firstComp);
       setParsedData(allRows);
-      processReconciliation(allRows, fetchedServers);
+      processReconciliation(allRows, fetchedServers, fetchedAjustes, firstComp);
       setStep(2);
     } catch (error) {
       alert('Erro ao processar arquivos CSV.');
@@ -355,7 +377,7 @@ export default function PagamentosPage() {
     }
   };
 
-  const processReconciliation = (rows: ParsedRow[], currentServers: Server[]) => {
+  const processReconciliation = (rows: ParsedRow[], currentServers: Server[], currentAjustes: AjusteContaRow[], comp: string) => {
     let financeiro = 0;
     let previdenciario = 0;
     let naoDefinido = 0;
@@ -488,6 +510,19 @@ export default function PagamentosPage() {
     
     setNewServersCount(newCount);
     setReportServers(rServers);
+    
+    const newReceivedTotals: Record<string, string> = {};
+    const normalize = (n: string) => n.toUpperCase().replace(/\s*-\s*[A-Z]{2}$/, '').replace(/[^A-Z]/g, '');
+    const uniqueDests = Array.from(new Set(rServers.map(s => s.destinatario || 'NAO_INFORMADO')));
+    
+    uniqueDests.forEach(dest => {
+      const normDest = normalize(dest);
+      const match = currentAjustes.find(a => a.competencia === comp && normalize(a.entidade) === normDest);
+      if (match && match.valorRealizado !== undefined && match.valorRealizado > 0) {
+        newReceivedTotals[dest] = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(match.valorRealizado);
+      }
+    });
+    setReceivedTotals(newReceivedTotals);
   };
 
   const parseInputValue = (val: string) => {
@@ -739,8 +774,23 @@ export default function PagamentosPage() {
                       <div key={inst.name} className="mb-4 p-4 border border-slate-200 rounded-lg bg-white">
                         <div className="flex justify-between items-center mb-3">
                           <h5 className="font-bold text-slate-800">{inst.name}</h5>
-                          <span className="text-sm font-medium text-slate-500">Esperado: {formatCurrency(inst.total)}</span>
+                          <div className="text-right">
+                            <span className="text-sm font-medium text-slate-500 block">Soma dos Detalhes: {formatCurrency(inst.total)}</span>
+                            {inst.resumoEsperado !== undefined && (
+                              <span className={`text-sm font-medium block ${Math.abs(inst.resumoEsperado - inst.total) > 0.01 ? 'text-amber-600' : 'text-blue-600'}`}>
+                                Resumo Contábil: {formatCurrency(inst.resumoEsperado)}
+                              </span>
+                            )}
+                          </div>
                         </div>
+                        
+                        {inst.resumoEsperado !== undefined && Math.abs(inst.resumoEsperado - inst.total) > 0.01 && (
+                          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm flex gap-2 items-start">
+                            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                            <p><strong>Atenção:</strong> O valor total listado nos CSVs detalhados difere do valor esperado informado no Ajuste de Contas.</p>
+                          </div>
+                        )}
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">Valor Recebido na Conta (R$)</label>
@@ -752,8 +802,11 @@ export default function PagamentosPage() {
                                 const val = e.target.value.replace(/[^0-9.,]/g, '');
                                 setReceivedTotals(prev => ({ ...prev, [inst.name]: val }));
                               }}
-                              className="w-full text-lg px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 font-bold text-slate-900"
+                              className="w-full text-lg px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 font-bold text-slate-900 bg-slate-50"
                             />
+                            {inst.resumoRealizado !== undefined && inst.resumoRealizado > 0 && (
+                              <p className="text-xs text-slate-500 mt-1">Preenchido auto. via Ajuste de Contas</p>
+                            )}
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">Data do Pagamento (Opcional)</label>
