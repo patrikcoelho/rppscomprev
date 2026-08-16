@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const hasAccess = await verifyUserAccess(t, spreadsheetId, u.email);
             if (!hasAccess) {
               setAccessError('Acesso Negado: Seu e-mail não está na aba Acessos.');
-              await logout();
+              logout().catch(console.error);
               setUser(null);
               setToken(null);
               setNeedsAuth(true);
@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setAccessError(err?.message === 'TOKEN_EXPIRED'
             ? 'Sua sessão do Google expirou. Faça login novamente.'
             : 'Falha ao validar seu acesso. Faça login novamente.');
-          await logout();
+          logout().catch(console.error);
           setUser(null);
           setToken(null);
           setNeedsAuth(true);
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const hasAccess = await verifyUserAccess(result.accessToken, spreadsheetId, result.user.email);
           if (!hasAccess) {
             setAccessError('Acesso Negado: Seu e-mail não está na aba Acessos.');
-            await logout();
+            logout().catch(console.error);
             setIsLoggingIn(false);
             return;
           }
@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       console.error('Login failed:', err);
       setAccessError(err.message === 'TOKEN_EXPIRED' ? 'Sessão expirada. Tente novamente.' : 'Erro ao fazer login.');
-      await logout();
+      logout().catch(console.error);
       setUser(null);
       setToken(null);
       setNeedsAuth(true);
