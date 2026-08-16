@@ -525,7 +525,7 @@ export async function fetchAjustesFromSheet(token: string, spreadsheetId: string
     
     return rows.slice(1).map((row: any[]) => ({
       id: row[0] || '',
-      competencia: row[1] || '',
+      competencia: parseCompetencia(row[1] || ''),
       entidade: row[2] || '',
       cnpj: row[3] || '',
       tipo: row[4] as 'RECEBER' | 'PAGAR',

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { useAuth } from '@/components/AuthProvider';
-import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, DollarSign, ArrowRight } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, DollarSign, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { fetchAjustesFromSheet, writeAjustesToSheet, AjusteContaRow } from '@/lib/sheets';
 import Papa from 'papaparse';
 
@@ -21,6 +21,12 @@ export default function AjusteContasPage() {
   const [editValues, setEditValues] = useState<Record<string, number>>({});
   
   const [feedback, setFeedback] = useState<{type: 'success' | 'error', message: string} | null>(null);
+  
+  const [expandedComps, setExpandedComps] = useState<Record<string, boolean>>({});
+
+  const toggleComp = (comp: string) => {
+    setExpandedComps(prev => ({ ...prev, [comp]: !prev[comp] }));
+  };
 
   useEffect(() => {
     if (spreadsheetId && token) {
@@ -360,14 +366,23 @@ export default function AjusteContasPage() {
       </div>
 
       <div className="space-y-8">
-        {competencias.map(comp => (
+        {competencias.map(comp => {
+          const isExpanded = expandedComps[comp];
+          return (
           <div key={comp} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+            <div 
+              className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center cursor-pointer hover:bg-slate-100 transition-colors"
+              onClick={() => toggleComp(comp)}
+            >
               <h2 className="font-bold text-slate-800 flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-blue-600" />
                 Competência: {comp}
               </h2>
+              <button className="text-slate-400 hover:text-slate-600">
+                {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              </button>
             </div>
+            {isExpanded && (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-slate-600">
                 <thead className="bg-white text-slate-500 uppercase font-semibold text-xs border-b border-slate-100">
@@ -429,8 +444,9 @@ export default function AjusteContasPage() {
                 </tbody>
               </table>
             </div>
+            )}
           </div>
-        ))}
+        )})}
         {competencias.length === 0 && !isLoading && (
           <div className="text-center py-12 bg-white rounded-xl border border-slate-200 border-dashed">
             <p className="text-slate-500">Nenhum ajuste de contas importado ainda.</p>
